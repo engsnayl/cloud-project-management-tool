@@ -10,6 +10,11 @@
       "version": "18"
     }
   },
+  "containerEnv": {
+    "AWS_ACCESS_KEY_ID": "${localEnv:AWS_ACCESS_KEY_ID}",
+    "AWS_SECRET_ACCESS_KEY": "${localEnv:AWS_SECRET_ACCESS_KEY}",
+    "AWS_DEFAULT_REGION": "${localEnv:AWS_DEFAULT_REGION}"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -18,6 +23,5 @@
         "eamodio.gitlens"
       ]
     }
-  },
-  "postCreateCommand": "npm install -g aws-cdk"
-}
+  }
+}}

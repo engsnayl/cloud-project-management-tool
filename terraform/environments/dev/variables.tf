@@ -39,5 +39,11 @@ variable "private_subnet_count" {
 variable "enable_nat_gateway" {
   description = "Enable NAT Gateway (costs money)"
   type        = bool
+  default     = false # Keep costs low in dev
+}
+
+variable "enable_point_in_time_recovery" {
+  description = "Enable point-in-time recovery for DynamoDB"
+  type        = bool
   default     = false  # Keep costs low in dev
 }
