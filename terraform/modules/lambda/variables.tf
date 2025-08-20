@@ -49,7 +49,7 @@ variable "enable_vpc_access" {
 variable "document_processor_zip_path" {
   description = "Path to the document processor Lambda deployment package"
   type        = string
-  default     = "../../src/lambdas/document-processor.zip"
+  default     = "../../src/lambdas/document-processor.zip"  # This path should be relative to the environment
 }
 
 variable "api_handler_zip_path" {
