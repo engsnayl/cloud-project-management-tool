@@ -47,3 +47,29 @@ variable "enable_point_in_time_recovery" {
   type        = bool
   default     = false  # Keep costs low in dev
 }
+
+# Add to existing variables.tf
+
+variable "enable_s3_versioning" {
+  description = "Enable S3 bucket versioning"
+  type        = bool
+  default     = true
+}
+
+variable "enable_s3_lifecycle" {
+  description = "Enable S3 lifecycle policy"
+  type        = bool
+  default     = false  # Keep costs low in dev
+}
+
+variable "document_retention_days" {
+  description = "Document retention in days"
+  type        = number
+  default     = 365  # 1 year for dev
+}
+
+variable "allowed_origins" {
+  description = "CORS allowed origins"
+  type        = list(string)
+  default     = ["*"]  # Open for dev, restrict in prod
+}

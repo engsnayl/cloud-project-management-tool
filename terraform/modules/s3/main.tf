@@ -42,12 +42,17 @@ resource "aws_s3_bucket_public_access_block" "documents" {
 }
 
 # Lifecycle policy to manage costs
+# Lifecycle policy to manage costs
 resource "aws_s3_bucket_lifecycle_configuration" "documents" {
   bucket = aws_s3_bucket.documents.id
 
   rule {
     id     = "transition_to_ia"
     status = var.enable_lifecycle_policy ? "Enabled" : "Disabled"
+
+    filter {
+      prefix = ""  # Apply to all objects
+    }
 
     transition {
       days          = 30

@@ -43,3 +43,23 @@ module "dynamodb" {
     BackupSchedule     = "daily"
   }
 }
+
+# Add this to your existing main.tf (after DynamoDB module)
+
+# S3 Module for Document Storage
+module "s3" {
+  source = "../../modules/s3"
+  
+  project_name             = var.project_name
+  environment              = var.environment
+  enable_versioning        = var.enable_s3_versioning
+  enable_lifecycle_policy  = var.enable_s3_lifecycle
+  document_retention_days  = var.document_retention_days
+  allowed_origins          = var.allowed_origins
+  
+  tags = {
+    DataClassification = "internal"
+    BackupSchedule     = "daily"
+    DocumentType       = "requirements"
+  }
+}
