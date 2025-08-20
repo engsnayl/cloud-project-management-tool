@@ -31,8 +31,6 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-# Add this to terraform/modules/lambda/main.tf (continuing from the IAM roles)
-
 # Custom IAM policy for Lambda to access DynamoDB and S3
 resource "aws_iam_role_policy" "lambda_custom" {
   name = "${var.project_name}-${var.environment}-lambda-policy"
@@ -89,8 +87,8 @@ resource "aws_lambda_function" "document_processor" {
   filename      = var.document_processor_zip_path
   function_name = "${var.project_name}-${var.environment}-document-processor"
   role         = aws_iam_role.lambda_role.arn
-  handler      = "index.handler"
-  runtime      = "nodejs18.x"
+  handler      = "lambda_function.lambda_handler"
+  runtime      = "python3.9"
   timeout      = 60
 
   environment {
@@ -121,8 +119,8 @@ resource "aws_lambda_function" "api_handler" {
   filename      = var.api_handler_zip_path
   function_name = "${var.project_name}-${var.environment}-api-handler"
   role         = aws_iam_role.lambda_role.arn
-  handler      = "index.handler"
-  runtime      = "nodejs18.x"
+  handler      = "lambda_function.lambda_handler"
+  runtime      = "python3.9"
   timeout      = 30
 
   environment {
