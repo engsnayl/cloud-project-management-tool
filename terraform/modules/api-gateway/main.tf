@@ -69,7 +69,6 @@ resource "aws_api_gateway_method_settings" "main" {
 
   settings {
     metrics_enabled = true
-    logging_level   = "ERROR"
   }
 }
 

@@ -39,3 +39,23 @@ output "s3_bucket_arn" {
   description = "ARN of the documents S3 bucket"
   value       = module.s3.bucket_arn
 }
+
+output "api_gateway_url" {
+  description = "Base URL for the API Gateway"
+  value       = module.api_gateway.api_gateway_url
+}
+
+output "health_endpoint" {
+  description = "Health check endpoint"
+  value       = module.api_gateway.health_endpoint
+}
+
+output "requirements_endpoint" {
+  description = "Requirements API endpoint"
+  value       = module.api_gateway.requirements_endpoint
+}
+
+output "projects_endpoint" {
+  description = "Projects API endpoint"
+  value       = module.api_gateway.projects_endpoint
+}

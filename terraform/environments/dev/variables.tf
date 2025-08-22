@@ -73,3 +73,11 @@ variable "allowed_origins" {
   type        = list(string)
   default     = ["*"]  # Open for dev, restrict in prod
 }
+
+# Add to existing variables.tf
+
+variable "api_stage_name" {
+  description = "API Gateway stage name"
+  type        = string
+  default     = "dev"
+}

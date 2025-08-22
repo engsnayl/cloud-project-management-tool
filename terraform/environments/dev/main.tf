@@ -87,3 +87,23 @@ module "lambda" {
     Purpose = "serverless-compute"
   }
 }
+
+# Add this to your existing main.tf (after the Lambda module)
+
+# API Gateway Module
+module "api_gateway" {
+  source = "../../modules/api-gateway"
+  
+  project_name               = var.project_name
+  environment                = var.environment
+  stage_name                 = var.api_stage_name
+  api_handler_function_name  = module.lambda.api_handler_function_name
+  api_handler_invoke_arn     = module.lambda.api_handler_invoke_arn
+  enable_cors                = true
+  cors_allowed_origins       = ["*"]  # Open for dev
+  
+  tags = {
+    Purpose = "api-layer"
+    Access  = "public"
+  }
+}

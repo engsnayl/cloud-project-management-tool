@@ -39,6 +39,3 @@ output "stage_name" {
   description = "API Gateway stage name"
   value       = aws_api_gateway_stage.main.stage_name
 }
-
-# Data source for current AWS region
-data "aws_region" "current" {}
