@@ -12,7 +12,7 @@ output "public_subnet_ids" {
 }
 
 output "private_subnet_ids" {
-  description = "IDs of private subnets"  
+  description = "IDs of private subnets"
   value       = module.vpc.private_subnet_ids
 }
 
@@ -78,4 +78,27 @@ output "document_processing_workflow_arn" {
 output "workflow_console_urls" {
   description = "URLs to view workflows in AWS console"
   value       = module.step_functions.workflow_urls
+}
+
+# Add to existing outputs.tf
+
+# EventBridge Outputs
+output "event_bus_name" {
+  description = "Name of the custom EventBridge event bus"
+  value       = module.eventbridge.event_bus_name
+}
+
+output "event_bus_arn" {
+  description = "ARN of the custom EventBridge event bus"
+  value       = module.eventbridge.event_bus_arn
+}
+
+output "event_patterns" {
+  description = "EventBridge event patterns for integration"
+  value       = module.eventbridge.event_patterns
+}
+
+output "event_dlq_url" {
+  description = "Dead letter queue URL for failed events"
+  value       = module.eventbridge.event_dlq_url
 }

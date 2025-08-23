@@ -40,14 +40,14 @@ variable "private_subnet_count" {
 variable "enable_nat_gateway" {
   description = "Enable NAT Gateway (costs money)"
   type        = bool
-  default     = false  # Keep costs low in dev
+  default     = false # Keep costs low in dev
 }
 
 # DynamoDB Variables
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB"
   type        = bool
-  default     = false  # Keep costs low in dev
+  default     = false # Keep costs low in dev
 }
 
 # S3 Variables
@@ -60,19 +60,19 @@ variable "enable_s3_versioning" {
 variable "enable_s3_lifecycle" {
   description = "Enable S3 lifecycle policy"
   type        = bool
-  default     = false  # Keep costs low in dev
+  default     = false # Keep costs low in dev
 }
 
 variable "document_retention_days" {
   description = "Document retention in days"
   type        = number
-  default     = 365  # 1 year for dev
+  default     = 365 # 1 year for dev
 }
 
 variable "allowed_origins" {
   description = "CORS allowed origins"
   type        = list(string)
-  default     = ["*"]  # Open for dev, restrict in prod
+  default     = ["*"] # Open for dev, restrict in prod
 }
 
 # API Gateway Variables
@@ -86,11 +86,26 @@ variable "api_stage_name" {
 variable "workflow_review_timeout" {
   description = "Workflow review timeout in seconds"
   type        = number
-  default     = 300  # 5 minutes for dev/demo
+  default     = 300 # 5 minutes for dev/demo
 }
 
 variable "workflow_log_retention_days" {
   description = "Step Functions log retention in days"
   type        = number
-  default     = 7  # Keep costs low
+  default     = 7 # Keep costs low
+}
+
+# Add to existing variables.tf
+
+# EventBridge Variables
+variable "enable_event_archive" {
+  description = "Enable EventBridge event archive"
+  type        = bool
+  default     = false # Keep costs low in dev
+}
+
+variable "event_archive_retention_days" {
+  description = "EventBridge archive retention in days"
+  type        = number
+  default     = 7 # Keep costs low
 }

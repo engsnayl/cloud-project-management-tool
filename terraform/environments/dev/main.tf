@@ -126,3 +126,27 @@ module "step_functions" {
     Complexity = "enterprise"
   }
 }
+
+# Add this to your existing main.tf (after Step Functions module)
+
+# EventBridge Module for Event-Driven Architecture
+module "eventbridge" {
+  source = "../../modules/eventbridge"
+
+  project_name                      = var.project_name
+  environment                       = var.environment
+  requirement_approval_workflow_arn = module.step_functions.requirement_approval_state_machine_arn
+  document_processing_workflow_arn  = module.step_functions.document_processing_state_machine_arn
+  api_handler_function_arn          = module.lambda.api_handler_function_arn
+  document_processor_function_arn   = module.lambda.document_processor_function_arn
+  enable_event_archive              = var.enable_event_archive
+  event_archive_retention_days      = var.event_archive_retention_days
+  enable_cross_account_events       = false # Keep simple for dev
+  enable_detailed_monitoring        = true  # Good for debugging
+
+  tags = {
+    Purpose      = "event-driven-architecture"
+    Architecture = "serverless"
+    Integration  = "step-functions"
+  }
+}
