@@ -18,6 +18,7 @@ variable "aws_region" {
   default     = "eu-west-1"
 }
 
+# VPC Variables
 variable "vpc_cidr_block" {
   description = "CIDR block for VPC"
   type        = string
@@ -39,17 +40,17 @@ variable "private_subnet_count" {
 variable "enable_nat_gateway" {
   description = "Enable NAT Gateway (costs money)"
   type        = bool
-  default     = false # Keep costs low in dev
+  default     = false  # Keep costs low in dev
 }
 
+# DynamoDB Variables
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB"
   type        = bool
   default     = false  # Keep costs low in dev
 }
 
-# Add to existing variables.tf
-
+# S3 Variables
 variable "enable_s3_versioning" {
   description = "Enable S3 bucket versioning"
   type        = bool
@@ -74,10 +75,22 @@ variable "allowed_origins" {
   default     = ["*"]  # Open for dev, restrict in prod
 }
 
-# Add to existing variables.tf
-
+# API Gateway Variables
 variable "api_stage_name" {
   description = "API Gateway stage name"
   type        = string
   default     = "dev"
+}
+
+# Step Functions Variables
+variable "workflow_review_timeout" {
+  description = "Workflow review timeout in seconds"
+  type        = number
+  default     = 300  # 5 minutes for dev/demo
+}
+
+variable "workflow_log_retention_days" {
+  description = "Step Functions log retention in days"
+  type        = number
+  default     = 7  # Keep costs low
 }

@@ -33,11 +33,11 @@ module "vpc" {
 # DynamoDB Module  
 module "dynamodb" {
   source = "../../modules/dynamodb"
-  
+
   project_name                  = var.project_name
   environment                   = var.environment
   enable_point_in_time_recovery = var.enable_point_in_time_recovery
-  
+
   tags = {
     DataClassification = "internal"
     BackupSchedule     = "daily"
@@ -49,14 +49,14 @@ module "dynamodb" {
 # S3 Module for Document Storage
 module "s3" {
   source = "../../modules/s3"
-  
-  project_name             = var.project_name
-  environment              = var.environment
-  enable_versioning        = var.enable_s3_versioning
-  enable_lifecycle_policy  = var.enable_s3_lifecycle
-  document_retention_days  = var.document_retention_days
-  allowed_origins          = var.allowed_origins
-  
+
+  project_name            = var.project_name
+  environment             = var.environment
+  enable_versioning       = var.enable_s3_versioning
+  enable_lifecycle_policy = var.enable_s3_lifecycle
+  document_retention_days = var.document_retention_days
+  allowed_origins         = var.allowed_origins
+
   tags = {
     DataClassification = "internal"
     BackupSchedule     = "daily"
@@ -68,42 +68,61 @@ module "s3" {
 
 module "lambda" {
   source = "../../modules/lambda"
-  
-  project_name          = var.project_name
-  environment           = var.environment
-  vpc_id                = module.vpc.vpc_id
-  private_subnet_ids    = module.vpc.private_subnet_ids
-  dynamodb_table_name   = module.dynamodb.table_name
-  dynamodb_table_arn    = module.dynamodb.table_arn
-  s3_bucket_name        = module.s3.bucket_name
-  s3_bucket_arn         = module.s3.bucket_arn
-  enable_vpc_access     = false
-  
+
+  project_name        = var.project_name
+  environment         = var.environment
+  vpc_id              = module.vpc.vpc_id
+  private_subnet_ids  = module.vpc.private_subnet_ids
+  dynamodb_table_name = module.dynamodb.table_name
+  dynamodb_table_arn  = module.dynamodb.table_arn
+  s3_bucket_name      = module.s3.bucket_name
+  s3_bucket_arn       = module.s3.bucket_arn
+  enable_vpc_access   = false
+
   # Use the correct paths - these should be relative to the dev environment directory
   document_processor_zip_path = "../../../src/lambdas/document-processor.zip"
-  api_handler_zip_path       = "../../../src/lambdas/api-handler.zip"
-  
+  api_handler_zip_path        = "../../../src/lambdas/api-handler.zip"
+
   tags = {
     Purpose = "serverless-compute"
   }
 }
 
-# Add this to your existing main.tf (after the Lambda module)
-
 # API Gateway Module
 module "api_gateway" {
   source = "../../modules/api-gateway"
-  
-  project_name               = var.project_name
-  environment                = var.environment
-  stage_name                 = var.api_stage_name
-  api_handler_function_name  = module.lambda.api_handler_function_name
-  api_handler_invoke_arn     = module.lambda.api_handler_invoke_arn
-  enable_cors                = true
-  cors_allowed_origins       = ["*"]  # Open for dev
-  
+
+  project_name              = var.project_name
+  environment               = var.environment
+  stage_name                = var.api_stage_name
+  api_handler_function_name = module.lambda.api_handler_function_name
+  api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
+  enable_cors               = true
+  cors_allowed_origins      = ["*"] # Open for dev
+
   tags = {
     Purpose = "api-layer"
     Access  = "public"
+  }
+}
+
+# Step Functions Module for Workflow Orchestration
+module "step_functions" {
+  source = "../../modules/step-functions"
+
+  project_name                    = var.project_name
+  environment                     = var.environment
+  api_handler_function_arn        = module.lambda.api_handler_function_arn
+  document_processor_function_arn = module.lambda.document_processor_function_arn
+  dynamodb_table_arn              = module.dynamodb.table_arn
+  review_timeout_seconds          = var.workflow_review_timeout
+  log_retention_days              = var.workflow_log_retention_days
+  enable_logging                  = false # Disable logging for dev
+  enable_express_workflows        = false
+  enable_xray_tracing             = false
+
+  tags = {
+    Purpose    = "workflow-orchestration"
+    Complexity = "enterprise"
   }
 }
