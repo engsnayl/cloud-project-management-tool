@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, User, Calendar, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev';
 
 const Actions = () => {
   const [actions, setActions] = useState([]);
