@@ -39,7 +39,7 @@ const WorkflowDashboard = () => {
   // Fetch analytics
   const { data: analyticsResponse } = useQuery(
     ['workflow-analytics', timeRange],
-    () => apiService.analytics.getWorkflowMetrics(),
+    () => apiService.analytics.getActionMetrics(),
     {
       onError: (error) => {
         console.error('Failed to fetch analytics:', error);
@@ -81,8 +81,10 @@ const WorkflowDashboard = () => {
 
   const getWorkflowTypeLabel = (type) => {
     const labels = {
-      'requirement-approval': 'Requirement Approval',
+      'action-reminder': 'Action Reminder',
+      'action-escalation': 'Action Escalation',
       'document-processing': 'Document Processing',
+      'daily-summary': 'Daily Summary',
     };
     return labels[type] || type;
   };
@@ -118,7 +120,7 @@ const WorkflowDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Workflow Dashboard</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Monitor Step Functions workflows and track approval processes
+            Monitor Step Functions workflows for action tracking and automation
           </p>
         </div>
         
@@ -153,8 +155,8 @@ const WorkflowDashboard = () => {
             color: 'text-blue-600 bg-blue-100',
           },
           {
-            name: 'Completed Today',
-            value: analytics.completedToday || 0,
+            name: 'Reminders Sent',
+            value: analytics.remindersSent || 0,
             icon: CheckCircle,
             color: 'text-green-600 bg-green-100',
           },
@@ -230,7 +232,7 @@ const WorkflowDashboard = () => {
               <GitBranch className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No workflows found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Workflows will appear here when requirements are created or documents are uploaded.
+                Workflows will appear here when actions are created, reminders are scheduled, or documents are processed.
               </p>
             </div>
           ) : (
@@ -258,8 +260,8 @@ const WorkflowDashboard = () => {
                           </div>
                           
                           <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-                            {workflow.requirementId && (
-                              <span>Requirement: {workflow.requirementId}</span>
+                            {workflow.actionId && (
+                              <span>Action: {workflow.actionId}</span>
                             )}
                             <span>
                               Started: {new Date(workflow.startTime).toLocaleString()}
@@ -317,18 +319,32 @@ const WorkflowDashboard = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Architecture Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex">
           <BarChart3 className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
           <div className="text-sm text-blue-700">
-            <h4 className="font-medium">Workflow Architecture</h4>
+            <h4 className="font-medium">Action Workflow Architecture</h4>
             <ul className="mt-1 space-y-1 text-xs">
-              <li>• Step Functions orchestrate approval and processing workflows</li>
-              <li>• EventBridge automatically triggers workflows from API events</li>
-              <li>• Real-time status updates via Step Functions execution history</li>
-              <li>• Visual workflow designer available in AWS Console</li>
+              <li>• Step Functions orchestrate action reminders and escalation workflows</li>
+              <li>• EventBridge automatically triggers workflows for overdue actions</li>
+              <li>• SES integration sends email reminders to action owners</li>
+              <li>• Real-time monitoring via Step Functions execution history</li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Coming Soon Notice */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex">
+          <Clock className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0" />
+          <div className="text-sm text-yellow-700">
+            <h4 className="font-medium">Phase 7.2 Feature</h4>
+            <p className="mt-1">
+              Action reminder workflows and automated escalation will be implemented in Phase 7.2. 
+              The dashboard is ready to display live workflow data!
+            </p>
           </div>
         </div>
       </div>

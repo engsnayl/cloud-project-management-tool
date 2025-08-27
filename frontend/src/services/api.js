@@ -36,15 +36,22 @@ export const apiService = {
   // Health Check
   checkHealth: () => api.get('/health'),
 
-  // Requirements API
-  requirements: {
-    getAll: () => api.get('/requirements'),
-    create: (requirementData) => api.post('/requirements', requirementData),
-    getById: (id) => api.get(`/requirements/${id}`),
-    update: (id, data) => api.put(`/requirements/${id}`, data),
-    delete: (id) => api.delete(`/requirements/${id}`),
-    approve: (id) => api.post(`/requirements/${id}/approve`),
-    reject: (id, reason) => api.post(`/requirements/${id}/reject`, { reason }),
+  // Actions API (formerly Requirements)
+  actions: {
+    getAll: (filters = {}) => {
+      const params = new URLSearchParams();
+      if (filters.projectId) params.append('projectId', filters.projectId);
+      if (filters.owner) params.append('owner', filters.owner);
+      if (filters.status) params.append('status', filters.status);
+      
+      const queryString = params.toString();
+      return api.get(`/actions${queryString ? '?' + queryString : ''}`);
+    },
+    create: (actionData) => api.post('/actions', actionData),
+    getById: (id) => api.get(`/actions/${id}`),
+    updateStatus: (id, status) => api.put(`/actions/${id}`, { status }),
+    delete: (id) => api.delete(`/actions/${id}`),
+    getMyActions: (owner) => api.get(`/actions?owner=${encodeURIComponent(owner)}`),
   },
 
   // Projects API
@@ -54,11 +61,22 @@ export const apiService = {
     getById: (id) => api.get(`/projects/${id}`),
     update: (id, data) => api.put(`/projects/${id}`, data),
     delete: (id) => api.delete(`/projects/${id}`),
-    getRequirements: (projectId) => api.get(`/projects/${projectId}/requirements`),
+    getActions: (projectId) => api.get(`/actions?projectId=${projectId}`),
   },
 
-  // Documents API
+  // Documents API (for future email/document parsing)
   documents: {
+    parseEmail: (emailContent) => api.post('/parse-email', { content: emailContent }),
+    parseDocument: (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      return api.post('/parse-document', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    },
     upload: (file, metadata) => {
       const formData = new FormData();
       formData.append('file', file);
@@ -74,18 +92,27 @@ export const apiService = {
     getExtractedText: (documentId) => api.get(`/documents/${documentId}/extracted-text`),
   },
 
-  // Workflows API
+  // Workflows API (for Step Functions monitoring)
   workflows: {
     getStatus: (executionArn) => api.get(`/workflows/status?executionArn=${encodeURIComponent(executionArn)}`),
-    getHistory: (requirementId) => api.get(`/workflows/history/${requirementId}`),
+    getHistory: (actionId) => api.get(`/workflows/history/${actionId}`),
     getAll: () => api.get('/workflows'),
+    triggerReminder: (actionId) => api.post(`/workflows/reminder/${actionId}`),
   },
 
   // Analytics API
   analytics: {
     getDashboard: () => api.get('/analytics/dashboard'),
     getProjectMetrics: (projectId) => api.get(`/analytics/projects/${projectId}`),
-    getWorkflowMetrics: () => api.get('/analytics/workflows'),
+    getActionMetrics: () => api.get('/analytics/actions'),
+    getOverdueActions: () => api.get('/analytics/overdue-actions'),
+  },
+
+  // Email Integration API (for Phase 7.2)
+  email: {
+    processIncoming: (emailData) => api.post('/email/process', emailData),
+    sendReminder: (actionId) => api.post(`/email/reminder/${actionId}`),
+    sendDailySummary: (owner) => api.post('/email/daily-summary', { owner }),
   },
 };
 

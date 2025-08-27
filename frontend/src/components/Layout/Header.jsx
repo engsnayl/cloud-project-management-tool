@@ -9,9 +9,9 @@ const Header = () => {
         <div className="flex items-center">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-              <span className="text-white font-bold text-sm">DC</span>
+              <span className="text-white font-bold text-sm">AT</span>
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">DeliveryCommand</h1>
+            <h1 className="text-xl font-semibold text-gray-900">ActionTracker</h1>
             <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
               Live
             </span>

@@ -8,11 +8,12 @@ import {
   Users, 
   Clock, 
   CheckCircle,
-  FileText,
+  CheckSquare,
   Upload,
   GitBranch,
   Activity,
-  ExternalLink
+  ExternalLink,
+  FolderOpen
 } from 'lucide-react';
 import { apiService, handleApiError } from '../../services/api';
 
@@ -29,57 +30,58 @@ const ProjectOverview = () => {
   );
 
   const dashboard = dashboardData?.data || {
-    requirements: { total: 0, byStatus: {} },
+    actions: { total: 0, byStatus: {} },
     workflows: { active: 0, completed: 0 },
     documents: { processed: 0, pending: 0 },
+    projects: { total: 0, active: 0 },
     recentActivity: []
   };
 
   const quickStats = [
     {
-      name: 'Total Requirements',
-      value: dashboard.requirements.total || 0,
-      change: '+12%',
-      changeType: 'increase',
-      icon: FileText,
+      name: 'Total Actions',
+      value: dashboard.actions?.total || 0,
+      change: '+0%',
+      changeType: 'neutral',
+      icon: CheckSquare,
       color: 'text-blue-600 bg-blue-100',
-      href: '/requirements'
+      href: '/actions'
     },
     {
-      name: 'Active Workflows',
-      value: dashboard.workflows.active || 0,
-      change: '2 running',
+      name: 'Active Projects',
+      value: dashboard.projects?.active || 0,
+      change: '0 active',
       changeType: 'neutral',
-      icon: GitBranch,
+      icon: FolderOpen,
       color: 'text-purple-600 bg-purple-100',
-      href: '/workflows'
+      href: '/projects'
     },
     {
       name: 'Documents Processed',
-      value: dashboard.documents.processed || 0,
-      change: '+5 today',
-      changeType: 'increase',
+      value: dashboard.documents?.processed || 0,
+      change: '+0 today',
+      changeType: 'neutral',
       icon: Upload,
       color: 'text-green-600 bg-green-100',
       href: '/documents'
     },
     {
       name: 'Completion Rate',
-      value: '87%',
-      change: '+3%',
-      changeType: 'increase',
+      value: '0%',
+      change: 'N/A',
+      changeType: 'neutral',
       icon: TrendingUp,
       color: 'text-orange-600 bg-orange-100',
-      href: '/workflows'
+      href: '/actions'
     }
   ];
 
   const recentActivity = dashboard.recentActivity || [
     {
       id: 1,
-      type: 'requirement_created',
-      title: 'New requirement created',
-      description: 'User Authentication System - HIGH priority',
+      type: 'action_created',
+      title: 'New action created',
+      description: 'Review authentication requirements - HIGH priority',
       timestamp: new Date().toISOString(),
       user: 'System'
     },
@@ -93,9 +95,9 @@ const ProjectOverview = () => {
     },
     {
       id: 3,
-      type: 'document_uploaded',
-      title: 'Document uploaded',
-      description: 'Requirements_Draft_v2.pdf processed via Textract',
+      type: 'project_created',
+      title: 'Project created',
+      description: 'Customer Portal Redesign project initialized',
       timestamp: new Date(Date.now() - 7200000).toISOString(),
       user: 'User'
     }
@@ -103,20 +105,22 @@ const ProjectOverview = () => {
 
   const getActivityIcon = (type) => {
     const icons = {
-      requirement_created: FileText,
+      action_created: CheckSquare,
+      action_completed: CheckCircle,
+      project_created: FolderOpen,
       workflow_completed: CheckCircle,
       document_uploaded: Upload,
-      requirement_approved: CheckCircle,
     };
     return icons[type] || Activity;
   };
 
   const getActivityColor = (type) => {
     const colors = {
-      requirement_created: 'text-blue-600 bg-blue-100',
+      action_created: 'text-blue-600 bg-blue-100',
+      action_completed: 'text-green-600 bg-green-100',
+      project_created: 'text-purple-600 bg-purple-100',
       workflow_completed: 'text-green-600 bg-green-100',
-      document_uploaded: 'text-purple-600 bg-purple-100',
-      requirement_approved: 'text-green-600 bg-green-100',
+      document_uploaded: 'text-orange-600 bg-orange-100',
     };
     return colors[type] || 'text-gray-600 bg-gray-100';
   };
@@ -143,15 +147,15 @@ const ProjectOverview = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Project Overview</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Monitor your serverless requirements management platform
+            Monitor your action tracking and project delivery platform
           </p>
         </div>
         <Link
-          to="/requirements/new"
+          to="/actions"
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <Plus className="w-4 h-4 mr-2" />
-          New Requirement
+          New Action
         </Link>
       </div>
 
@@ -259,24 +263,31 @@ const ProjectOverview = () => {
             </div>
             <div className="p-6 space-y-3">
               <Link
-                to="/requirements/new"
+                to="/actions"
                 className="w-full flex items-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <FileText className="w-5 h-5 mr-3 text-blue-500" />
-                Create Requirement
+                <CheckSquare className="w-5 h-5 mr-3 text-blue-500" />
+                Create Action
+              </Link>
+              <Link
+                to="/projects"
+                className="w-full flex items-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <FolderOpen className="w-5 h-5 mr-3 text-purple-500" />
+                Create Project
               </Link>
               <Link
                 to="/documents"
                 className="w-full flex items-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <Upload className="w-5 h-5 mr-3 text-purple-500" />
+                <Upload className="w-5 h-5 mr-3 text-green-500" />
                 Upload Document
               </Link>
               <Link
                 to="/workflows"
                 className="w-full flex items-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <GitBranch className="w-5 h-5 mr-3 text-green-500" />
+                <GitBranch className="w-5 h-5 mr-3 text-orange-500" />
                 View Workflows
               </Link>
             </div>
@@ -339,7 +350,7 @@ const ProjectOverview = () => {
                   <li>• Event-Driven (EventBridge orchestration)</li>
                   <li>• Workflow Automation (Step Functions)</li>
                   <li>• Auto-Scaling NoSQL (DynamoDB)</li>
-                  <li>• Document AI (Textract processing)</li>
+                  <li>• Action Tracking (Business Process Automation)</li>
                   <li>• Infrastructure as Code (Terraform)</li>
                 </ul>
                 <div className="mt-3 pt-2 border-t border-blue-200">

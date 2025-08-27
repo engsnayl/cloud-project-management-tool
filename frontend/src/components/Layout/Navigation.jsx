@@ -3,32 +3,35 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
-  FileText, 
+  CheckSquare, 
   Upload, 
   GitBranch, 
   BarChart3, 
   Settings,
-  Plus
+  Plus,
+  FolderOpen
 } from 'lucide-react';
 
 const Navigation = () => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/', icon: Home, label: 'Overview', count: null },
-    { path: '/requirements', icon: FileText, label: 'Requirements', count: '12' },
-    { path: '/documents', icon: Upload, label: 'Documents', count: '5' },
-    { path: '/workflows', icon: GitBranch, label: 'Workflows', count: '3' },
+    { path: '/', icon: Home, label: 'Dashboard', count: null },
+    { path: '/actions', icon: CheckSquare, label: 'Actions', count: '0' },
+    { path: '/projects', icon: FolderOpen, label: 'Projects', count: '0' },
+    { path: '/documents', icon: Upload, label: 'Documents', count: '0' },
+    { path: '/workflows', icon: GitBranch, label: 'Workflows', count: '0' },
   ];
 
   const quickActions = [
-    { path: '/requirements/new', icon: Plus, label: 'New Requirement' },
+    { path: '/actions', icon: Plus, label: 'New Action' },
+    { path: '/projects', icon: FolderOpen, label: 'Create Project' },
     { path: '/documents', icon: Upload, label: 'Upload Document' },
   ];
 
   const isActivePath = (path) => {
     if (path === '/') {
-      return location.pathname === '/';
+      return location.pathname === '/' || location.pathname === '/dashboard';
     }
     return location.pathname.startsWith(path);
   };
@@ -54,7 +57,7 @@ const Navigation = () => {
               >
                 <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
                 <span className="flex-1">{item.label}</span>
-                {item.count && (
+                {item.count !== null && (
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                     isActive 
                       ? 'bg-blue-100 text-blue-700' 
@@ -99,7 +102,7 @@ const Navigation = () => {
           </div>
           <div className="mt-2 text-xs text-green-600">
             <div>API: Online</div>
-            <div>Workflows: Active</div>
+            <div>Actions: Ready</div>
             <div>Storage: Available</div>
           </div>
         </div>
@@ -111,7 +114,7 @@ const Navigation = () => {
             <div>• Serverless (AWS Lambda)</div>
             <div>• Event-Driven (EventBridge)</div>
             <div>• Auto-Scaling (DynamoDB)</div>
-            <div>• Workflow Orchestration</div>
+            <div>• Action Workflows</div>
           </div>
         </div>
       </div>

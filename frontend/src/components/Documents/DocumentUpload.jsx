@@ -190,7 +190,7 @@ const DocumentUpload = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Document Processing</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Upload PDF or Word documents to automatically extract requirements using AWS Textract
+          Upload meeting notes, emails, or documents to automatically extract actions using AWS Textract
         </p>
       </div>
 
@@ -210,7 +210,7 @@ const DocumentUpload = () => {
             {isDragActive ? 'Drop files here' : 'Upload documents'}
           </h3>
           <p className="mt-2 text-sm text-gray-500">
-            Drag and drop your files here, or click to select files
+            Drag and drop your meeting notes or documents here, or click to select files
           </p>
           <p className="mt-1 text-xs text-gray-400">
             Supports PDF, DOC, DOCX up to 10MB each
@@ -247,7 +247,7 @@ const DocumentUpload = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Uploaded Documents</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Track processing status and view extracted content
+              Track processing status and view extracted actions
             </p>
           </div>
 
@@ -307,9 +307,9 @@ const DocumentUpload = () => {
                           </div>
                           
                           <div className="text-sm text-green-700">
-                            <strong>Extracted Text:</strong>
+                            <strong>Extracted Actions:</strong>
                             <div className="mt-1 p-2 bg-white rounded border max-h-32 overflow-y-auto text-xs">
-                              {file.processingResult.extractedText || 'No text extracted'}
+                              {file.processingResult.extractedText || 'No actions extracted - document may need manual review'}
                             </div>
                           </div>
                         </div>
@@ -336,13 +336,27 @@ const DocumentUpload = () => {
         <div className="flex">
           <FileText className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
           <div className="text-sm text-blue-700">
-            <h4 className="font-medium">Document Processing Workflow</h4>
+            <h4 className="font-medium">Action Extraction Workflow</h4>
             <ul className="mt-1 space-y-1 text-xs">
               <li>• Upload triggers automatic processing via EventBridge</li>
-              <li>• AWS Textract extracts text from PDFs and Word documents</li>
-              <li>• Extracted content can be used to auto-generate requirements</li>
+              <li>• AWS Textract extracts text from meeting notes and documents</li>
+              <li>• Extracted content can be parsed to auto-generate action items</li>
               <li>• Processing typically takes 30-60 seconds per document</li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Coming Soon Notice */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex">
+          <Clock className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0" />
+          <div className="text-sm text-yellow-700">
+            <h4 className="font-medium">Phase 7.2 Feature</h4>
+            <p className="mt-1">
+              Document processing and action extraction will be implemented in Phase 7.2. 
+              The UI is ready - backend integration coming soon!
+            </p>
           </div>
         </div>
       </div>
