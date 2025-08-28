@@ -11,339 +11,253 @@ import {
   PauseCircle,
   ExternalLink,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Mail,
+  Calendar
 } from 'lucide-react';
-import { apiService, handleApiError } from '../../services/api';
 
 const WorkflowDashboard = () => {
-  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
-  const [timeRange, setTimeRange] = useState('7d');
+  const [filter, setFilter] = useState('ALL');
 
-  // Fetch workflow data
-  const {
-    data: workflowsResponse,
-    isLoading,
-    error,
-    refetch
-  } = useQuery(
-    'workflows',
-    apiService.workflows.getAll,
+  // Mock workflow data - in Phase 7.2 this will connect to real Step Functions
+  const mockWorkflows = [
     {
-      refetchInterval: 10000, // Refresh every 10 seconds
-      onError: (error) => {
-        console.error('Failed to fetch workflows:', handleApiError(error));
-      }
-    }
-  );
-
-  // Fetch analytics
-  const { data: analyticsResponse } = useQuery(
-    ['workflow-analytics', timeRange],
-    () => apiService.analytics.getActionMetrics(),
+      id: 'wf-001',
+      name: 'Daily Action Reminders',
+      type: 'action-reminder',
+      status: 'RUNNING',
+      lastExecution: '2025-08-28T06:00:00Z',
+      nextExecution: '2025-08-29T06:00:00Z',
+      executionCount: 28,
+      successRate: 100,
+      description: 'Sends daily email reminders to action owners'
+    },
     {
-      onError: (error) => {
-        console.error('Failed to fetch analytics:', error);
-      }
+      id: 'wf-002', 
+      name: 'Overdue Action Escalation',
+      type: 'action-escalation',
+      status: 'PAUSED',
+      lastExecution: '2025-08-27T18:00:00Z',
+      nextExecution: null,
+      executionCount: 12,
+      successRate: 95,
+      description: 'Escalates overdue actions to project managers'
+    },
+    {
+      id: 'wf-003',
+      name: 'Weekly Status Reports',
+      type: 'status-report',
+      status: 'RUNNING',
+      lastExecution: '2025-08-26T09:00:00Z',
+      nextExecution: '2025-09-02T09:00:00Z',
+      executionCount: 4,
+      successRate: 100,
+      description: 'Generates weekly project status reports'
     }
-  );
-
-  const workflows = workflowsResponse?.data?.workflows || [];
-  const analytics = analyticsResponse?.data || {};
+  ];
 
   const getStatusIcon = (status) => {
-    const icons = {
-      'RUNNING': PlayCircle,
-      'SUCCEEDED': CheckCircle,
-      'FAILED': XCircle,
-      'TIMED_OUT': Clock,
-      'ABORTED': PauseCircle,
-    };
-    return icons[status] || AlertTriangle;
+    switch (status) {
+      case 'RUNNING':
+        return <PlayCircle className="w-5 h-5 text-green-600" />;
+      case 'PAUSED':
+        return <PauseCircle className="w-5 h-5 text-yellow-600" />;
+      case 'FAILED':
+        return <XCircle className="w-5 h-5 text-red-600" />;
+      case 'SUCCEEDED':
+        return <CheckCircle className="w-5 h-5 text-green-600" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-600" />;
+    }
   };
 
   const getStatusColor = (status) => {
-    const colors = {
-      'RUNNING': 'text-blue-600 bg-blue-100',
-      'SUCCEEDED': 'text-green-600 bg-green-100',
-      'FAILED': 'text-red-600 bg-red-100',
-      'TIMED_OUT': 'text-yellow-600 bg-yellow-100',
-      'ABORTED': 'text-gray-600 bg-gray-100',
-    };
-    return colors[status] || 'text-gray-600 bg-gray-100';
+    switch (status) {
+      case 'RUNNING':
+        return 'bg-green-100 text-green-800';
+      case 'PAUSED':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'FAILED':
+        return 'bg-red-100 text-red-800';
+      case 'SUCCEEDED':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds) return 'N/A';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'action-reminder':
+        return <Mail className="w-5 h-5 text-blue-600" />;
+      case 'action-escalation':
+        return <AlertTriangle className="w-5 h-5 text-orange-600" />;
+      case 'status-report':
+        return <BarChart3 className="w-5 h-5 text-purple-600" />;
+      default:
+        return <GitBranch className="w-5 h-5 text-gray-600" />;
+    }
   };
 
-  const getWorkflowTypeLabel = (type) => {
-    const labels = {
-      'action-reminder': 'Action Reminder',
-      'action-escalation': 'Action Escalation',
-      'document-processing': 'Document Processing',
-      'daily-summary': 'Daily Summary',
-    };
-    return labels[type] || type;
-  };
+  const filteredWorkflows = mockWorkflows.filter(workflow => {
+    if (filter === 'ALL') return true;
+    return workflow.status === filter;
+  });
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <XCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" />
+  const totalWorkflows = mockWorkflows.length;
+  const runningWorkflows = mockWorkflows.filter(w => w.status === 'RUNNING').length;
+  const remindersSent = mockWorkflows
+    .filter(w => w.type === 'action-reminder')[0]?.executionCount || 0;
+
+  return (
+    <div className="p-6" style={{ marginLeft: '256px' }}>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-sm font-medium text-red-800">Error Loading Workflows</h3>
-              <p className="mt-1 text-sm text-red-700">
-                {handleApiError(error).message}
-              </p>
-              <button 
-                onClick={() => refetch()}
-                className="mt-2 text-sm text-red-800 underline hover:text-red-900"
-              >
-                Try Again
-              </button>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Workflow Dashboard</h1>
+              <p className="text-gray-600">Monitor action tracking and automation workflows</p>
+            </div>
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Status
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <GitBranch className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Active Workflows</p>
+                <p className="text-2xl font-bold text-gray-900">{runningWorkflows}</p>
+                <p className="text-xs text-gray-500 mt-1">of {totalWorkflows} total</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Executions Today</p>
+                <p className="text-2xl font-bold text-gray-900">3</p>
+                <p className="text-xs text-gray-500 mt-1">All successful</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Mail className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Reminders Sent</p>
+                <p className="text-2xl font-bold text-gray-900">{remindersSent}</p>
+                <p className="text-xs text-gray-500 mt-1">This month</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <BarChart3 className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Success Rate</p>
+                <p className="text-2xl font-bold text-gray-900">98%</p>
+                <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Workflow Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Monitor Step Functions workflows for action tracking and automation
-          </p>
+        {/* Filter Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex space-x-8">
+            {['ALL', 'RUNNING', 'PAUSED', 'FAILED'].map(status => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  filter === status
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {status} ({mockWorkflows.filter(w => status === 'ALL' || w.status === status).length})
+              </button>
+            ))}
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-3">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="1d">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-          </select>
-          
-          <button
-            onClick={() => refetch()}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <RefreshCw className="w-4 h-4 mr-1" />
-            Refresh
-          </button>
-        </div>
-      </div>
 
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            name: 'Active Workflows',
-            value: workflows.filter(w => w.status === 'RUNNING').length,
-            icon: PlayCircle,
-            color: 'text-blue-600 bg-blue-100',
-          },
-          {
-            name: 'Reminders Sent',
-            value: analytics.remindersSent || 0,
-            icon: CheckCircle,
-            color: 'text-green-600 bg-green-100',
-          },
-          {
-            name: 'Failed',
-            value: workflows.filter(w => w.status === 'FAILED').length,
-            icon: XCircle,
-            color: 'text-red-600 bg-red-100',
-          },
-          {
-            name: 'Avg Duration',
-            value: analytics.avgDuration ? formatDuration(analytics.avgDuration) : 'N/A',
-            icon: Clock,
-            color: 'text-yellow-600 bg-yellow-100',
-          },
-        ].map((stat) => {
-          const Icon = stat.icon;
-          
-          return (
-            <div key={stat.name} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className={`p-3 rounded-lg ${stat.color}`}>
-                      <Icon className="h-6 w-6" />
+        {/* Workflows List */}
+        <div className="space-y-4 mb-8">
+          {filteredWorkflows.map((workflow) => (
+            <div key={workflow.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    {getTypeIcon(workflow.type)}
+                    <h3 className="text-lg font-semibold text-gray-900">{workflow.name}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(workflow.status)}`}>
+                      {workflow.status}
+                    </span>
+                  </div>
+                  
+                  <p className="text-gray-600 mb-4">{workflow.description}</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500 font-medium">Last Execution</p>
+                      <p className="text-gray-900">{new Date(workflow.lastExecution).toLocaleString()}</p>
+                    </div>
+                    {workflow.nextExecution && (
+                      <div>
+                        <p className="text-gray-500 font-medium">Next Execution</p>
+                        <p className="text-gray-900">{new Date(workflow.nextExecution).toLocaleString()}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-gray-500 font-medium">Success Rate</p>
+                      <p className="text-gray-900">{workflow.successRate}% ({workflow.executionCount} runs)</p>
                     </div>
                   </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        {stat.name}
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {stat.value}
-                      </dd>
-                    </dl>
-                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 ml-4">
+                  {getStatusIcon(workflow.status)}
+                  <button className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center">
+                    View Details <ExternalLink className="w-3 h-3 ml-1" />
+                  </button>
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
 
-      {/* Workflow List */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Recent Workflow Executions</h3>
-            <span className="text-sm text-gray-500">
-              Auto-refreshing every 10 seconds
-            </span>
+        {/* Architecture Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">Action Workflow Architecture</h3>
+          <div className="text-blue-800 space-y-2 text-sm">
+            <p>• <strong>EventBridge Rules:</strong> Schedule daily reminders and weekly reports</p>
+            <p>• <strong>Step Functions:</strong> Orchestrate action reminder and escalation workflows</p>
+            <p>• <strong>SES Integration:</strong> Send email notifications to action owners</p>
+            <p>• <strong>Lambda Functions:</strong> Process action status changes and trigger notifications</p>
+            <p>• <strong>DynamoDB Streams:</strong> React to action updates in real-time</p>
           </div>
-        </div>
-
-        <div className="overflow-hidden">
-          {isLoading ? (
-            <div className="px-6 py-8">
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="animate-pulse flex items-center space-x-4">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : workflows.length === 0 ? (
-            <div className="px-6 py-8 text-center">
-              <GitBranch className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No workflows found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Workflows will appear here when actions are created, reminders are scheduled, or documents are processed.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {workflows.map((workflow) => {
-                const StatusIcon = getStatusIcon(workflow.status);
-                const statusColor = getStatusColor(workflow.status);
-                
-                return (
-                  <div key={workflow.executionArn} className="px-6 py-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`p-2 rounded-full ${statusColor}`}>
-                          <StatusIcon className="w-4 h-4" />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-900 truncate">
-                              {getWorkflowTypeLabel(workflow.workflowType)}
-                            </h4>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                              {workflow.status}
-                            </span>
-                          </div>
-                          
-                          <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-                            {workflow.actionId && (
-                              <span>Action: {workflow.actionId}</span>
-                            )}
-                            <span>
-                              Started: {new Date(workflow.startTime).toLocaleString()}
-                            </span>
-                            {workflow.duration && (
-                              <span>Duration: {formatDuration(workflow.duration)}</span>
-                            )}
-                          </div>
-                          
-                          {workflow.currentStep && (
-                            <div className="mt-1 text-xs text-blue-600">
-                              Current step: {workflow.currentStep}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {workflow.consoleUrl && (
-                          <a
-                            href={workflow.consoleUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
-                            title="View in AWS Console"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Workflow Progress */}
-                    {workflow.status === 'RUNNING' && workflow.progress && (
-                      <div className="mt-3 ml-12">
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                          <span>Progress</span>
-                          <span>{workflow.progress.completed}/{workflow.progress.total} steps</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                            style={{ 
-                              width: `${(workflow.progress.completed / workflow.progress.total) * 100}%` 
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Architecture Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <BarChart3 className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-          <div className="text-sm text-blue-700">
-            <h4 className="font-medium">Action Workflow Architecture</h4>
-            <ul className="mt-1 space-y-1 text-xs">
-              <li>• Step Functions orchestrate action reminders and escalation workflows</li>
-              <li>• EventBridge automatically triggers workflows for overdue actions</li>
-              <li>• SES integration sends email reminders to action owners</li>
-              <li>• Real-time monitoring via Step Functions execution history</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Coming Soon Notice */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex">
-          <Clock className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0" />
-          <div className="text-sm text-yellow-700">
-            <h4 className="font-medium">Phase 7.2 Feature</h4>
-            <p className="mt-1">
-              Action reminder workflows and automated escalation will be implemented in Phase 7.2. 
-              The dashboard is ready to display live workflow data!
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+            <p className="text-sm text-yellow-800">
+              <strong>Phase 7.2 Feature:</strong> Live workflow monitoring will be implemented when we add the reminder workflows. The dashboard shows the architecture that will be built.
             </p>
           </div>
         </div>

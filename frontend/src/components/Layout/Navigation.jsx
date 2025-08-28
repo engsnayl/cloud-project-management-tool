@@ -1,6 +1,8 @@
 // src/components/Layout/Navigation.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from 'react-query';
+import apiService from '../../services/api';
 import { 
   Home, 
   CheckSquare, 
@@ -15,10 +17,26 @@ import {
 const Navigation = () => {
   const location = useLocation();
 
+  // Fetch data for dynamic counts
+  const { data: actionsResponse } = useQuery(
+    'nav-actions',
+    () => apiService.actions.getAll(),
+    { retry: 1, refetchOnWindowFocus: false }
+  );
+
+  const { data: projectsResponse } = useQuery(
+    'nav-projects',
+    () => apiService.projects.getAll(),
+    { retry: 1, refetchOnWindowFocus: false }
+  );
+
+  const actions = actionsResponse?.data?.actions || [];
+  const projects = projectsResponse?.data?.projects || [];
+
   const navItems = [
     { path: '/', icon: Home, label: 'Dashboard', count: null },
-    { path: '/actions', icon: CheckSquare, label: 'Actions', count: '0' },
-    { path: '/projects', icon: FolderOpen, label: 'Projects', count: '0' },
+    { path: '/actions', icon: CheckSquare, label: 'Actions', count: actions.length.toString() },
+    { path: '/projects', icon: FolderOpen, label: 'Projects', count: projects.length.toString() },
     { path: '/documents', icon: Upload, label: 'Documents', count: '0' },
     { path: '/workflows', icon: GitBranch, label: 'Workflows', count: '0' },
   ];

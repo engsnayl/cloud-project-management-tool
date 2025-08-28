@@ -10,149 +10,114 @@ import {
   Clock, 
   X,
   FileText,
-  Download
+  Image,
+  Paperclip
 } from 'lucide-react';
-import { apiService, handleApiError } from '../../services/api';
 
 const DocumentUpload = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [processingFiles, setProcessingFiles] = useState(new Set());
+  const [processingFiles, setProcessingFiles] = useState([]);
 
-  // Upload mutation
-  const uploadMutation = useMutation(
-    ({ file, metadata }) => apiService.documents.upload(file, metadata),
-    {
-      onSuccess: (data, variables) => {
-        const fileInfo = {
-          id: data.data.documentId,
-          name: variables.file.name,
-          size: variables.file.size,
-          status: 'processing',
-          uploadedAt: new Date().toISOString(),
-          processingResult: null,
-        };
-        
-        setUploadedFiles(prev => [...prev, fileInfo]);
-        setProcessingFiles(prev => new Set([...prev, fileInfo.id]));
-        
-        // Start polling for processing status
-        pollProcessingStatus(fileInfo.id);
-      },
-      onError: (error) => {
-        console.error('Upload failed:', handleApiError(error));
-      },
-    }
-  );
-
-  // Polling for processing status
-  const pollProcessingStatus = async (documentId) => {
-    const maxAttempts = 20; // 2 minutes with 6-second intervals
-    let attempts = 0;
-
-    const poll = async () => {
-      try {
-        const response = await apiService.documents.getProcessingStatus(documentId);
-        const status = response.data.status;
-
-        if (status === 'completed') {
-          // Get extracted text
-          const textResponse = await apiService.documents.getExtractedText(documentId);
-          
-          setUploadedFiles(prev =>
-            prev.map(file =>
-              file.id === documentId
-                ? {
-                    ...file,
-                    status: 'completed',
-                    processingResult: {
-                      extractedText: textResponse.data.extractedText,
-                      confidence: textResponse.data.confidence,
-                      pageCount: textResponse.data.pageCount,
-                    },
-                  }
-                : file
-            )
-          );
-          setProcessingFiles(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(documentId);
-            return newSet;
-          });
-        } else if (status === 'failed') {
-          setUploadedFiles(prev =>
-            prev.map(file =>
-              file.id === documentId
-                ? { ...file, status: 'failed', error: 'Processing failed' }
-                : file
-            )
-          );
-          setProcessingFiles(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(documentId);
-            return newSet;
-          });
-        } else if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(poll, 6000); // Poll every 6 seconds
-        } else {
-          // Timeout
-          setUploadedFiles(prev =>
-            prev.map(file =>
-              file.id === documentId
-                ? { ...file, status: 'failed', error: 'Processing timeout' }
-                : file
-            )
-          );
-          setProcessingFiles(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(documentId);
-            return newSet;
-          });
-        }
-      } catch (error) {
-        console.error('Error polling status:', error);
-        setUploadedFiles(prev =>
-          prev.map(file =>
-            file.id === documentId
-              ? { ...file, status: 'failed', error: 'Status check failed' }
-              : file
-          )
-        );
-        setProcessingFiles(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(documentId);
-          return newSet;
-        });
-      }
-    };
-
-    poll();
-  };
-
-  // Dropzone configuration
   const onDrop = useCallback((acceptedFiles) => {
-    acceptedFiles.forEach(file => {
-      const metadata = {
-        originalName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        uploadedAt: new Date().toISOString(),
-      };
+    const newFiles = acceptedFiles.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      name: file.name,
+      size: file.size,
+      status: 'uploading',
+      progress: 0,
+      extractedActions: []
+    }));
 
-      uploadMutation.mutate({ file, metadata });
+    setProcessingFiles(prev => [...prev, ...newFiles]);
+
+    // Simulate upload and processing
+    newFiles.forEach(fileObj => {
+      // Simulate upload progress
+      let progress = 0;
+      const uploadInterval = setInterval(() => {
+        progress += Math.random() * 30;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(uploadInterval);
+          
+          // Move to processing
+          setProcessingFiles(prev => 
+            prev.map(f => 
+              f.id === fileObj.id 
+                ? { ...f, status: 'processing', progress: 100 }
+                : f
+            )
+          );
+
+          // Simulate processing completion
+          setTimeout(() => {
+            const mockActions = [
+              `Review ${fileObj.name} contents`,
+              `Follow up on items mentioned in ${fileObj.name}`,
+              `Create action items based on ${fileObj.name}`
+            ];
+
+            setProcessingFiles(prev => prev.filter(f => f.id !== fileObj.id));
+            setUploadedFiles(prev => [...prev, {
+              ...fileObj,
+              status: 'completed',
+              progress: 100,
+              extractedActions: mockActions,
+              processedAt: new Date().toISOString()
+            }]);
+          }, 2000 + Math.random() * 3000);
+        } else {
+          setProcessingFiles(prev => 
+            prev.map(f => 
+              f.id === fileObj.id ? { ...f, progress } : f
+            )
+          );
+        }
+      }, 200);
     });
-  }, [uploadMutation]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt']
     },
-    maxSize: 10 * 1024 * 1024, // 10MB
-    multiple: true,
+    maxSize: 10 * 1024 * 1024 // 10MB
   });
+
+  const getFileIcon = (fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return <FileText className="w-6 h-6 text-red-500" />;
+      case 'doc':
+      case 'docx':
+        return <File className="w-6 h-6 text-blue-500" />;
+      case 'txt':
+        return <FileText className="w-6 h-6 text-gray-500" />;
+      default:
+        return <Paperclip className="w-6 h-6 text-gray-500" />;
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'uploading':
+        return <Clock className="w-5 h-5 text-blue-500 animate-spin" />;
+      case 'processing':
+        return <Clock className="w-5 h-5 text-yellow-500 animate-pulse" />;
+      case 'completed':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'error':
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-500" />;
+    }
+  };
 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -162,200 +127,150 @@ const DocumentUpload = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'processing':
-        return <Clock className="w-4 h-4 text-yellow-500 animate-spin" />;
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'failed':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <File className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
   const removeFile = (fileId) => {
-    setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
-    setProcessingFiles(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(fileId);
-      return newSet;
-    });
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+    setProcessingFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Document Processing</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Upload meeting notes, emails, or documents to automatically extract actions using AWS Textract
-        </p>
-      </div>
-
-      {/* Upload Area */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            isDragActive
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-          }`}
-        >
-          <input {...getInputProps()} />
-          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">
-            {isDragActive ? 'Drop files here' : 'Upload documents'}
-          </h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Drag and drop your meeting notes or documents here, or click to select files
-          </p>
-          <p className="mt-1 text-xs text-gray-400">
-            Supports PDF, DOC, DOCX up to 10MB each
+    <div className="p-6" style={{ marginLeft: '256px' }}>
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Document Processing</h1>
+          <p className="text-gray-600">
+            Upload meeting notes and documents to automatically extract actions using AWS Textract
           </p>
         </div>
 
-        {uploadMutation.isLoading && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <div className="flex items-center">
-              <div className="w-4 h-4 spinner mr-3" />
-              <span className="text-sm text-blue-800">Uploading files...</span>
-            </div>
-          </div>
-        )}
-
-        {uploadMutation.error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Upload Error</h3>
-                <p className="mt-1 text-sm text-red-700">
-                  {handleApiError(uploadMutation.error).message}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Uploaded Files */}
-      {uploadedFiles.length > 0 && (
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Uploaded Documents</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Track processing status and view extracted actions
+        {/* Upload Area */}
+        <div className="mb-8">
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+              isDragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <input {...getInputProps()} />
+            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Upload documents
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Drag and drop your meeting notes or documents here, or click to select files
+            </p>
+            <p className="text-sm text-gray-400">
+              Supports PDF, DOC, DOCX up to 10MB each
             </p>
           </div>
+        </div>
 
-          <div className="divide-y divide-gray-200">
-            {uploadedFiles.map((file) => (
-              <div key={file.id} className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <FileText className="w-8 h-8 text-blue-500 flex-shrink-0 mt-1" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="text-sm font-medium text-gray-900 truncate">
-                          {file.name}
-                        </h4>
-                        {getStatusIcon(file.status)}
-                        <span className="text-xs text-gray-500 capitalize">
-                          {file.status}
-                        </span>
+        {/* Processing Files */}
+        {processingFiles.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Processing</h2>
+            <div className="space-y-4">
+              {processingFiles.map((fileObj) => (
+                <div key={fileObj.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      {getFileIcon(fileObj.name)}
+                      <div>
+                        <p className="font-medium text-gray-900">{fileObj.name}</p>
+                        <p className="text-sm text-gray-500">{formatFileSize(fileObj.size)}</p>
                       </div>
-                      
-                      <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-                        <span>{formatFileSize(file.size)}</span>
-                        <span>
-                          Uploaded {new Date(file.uploadedAt).toLocaleString()}
-                        </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {getStatusIcon(fileObj.status)}
+                      <span className="text-sm text-gray-600 capitalize">{fileObj.status}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${fileObj.progress}%` }}
+                    />
+                  </div>
+                  
+                  {fileObj.status === 'processing' && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Extracting actions from document...
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Completed Files */}
+        {uploadedFiles.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Processed Documents</h2>
+            <div className="space-y-4">
+              {uploadedFiles.map((fileObj) => (
+                <div key={fileObj.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      {getFileIcon(fileObj.name)}
+                      <div>
+                        <p className="font-medium text-gray-900">{fileObj.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {formatFileSize(fileObj.size)} • Processed {new Date(fileObj.processedAt).toLocaleString()}
+                        </p>
                       </div>
-
-                      {file.error && (
-                        <p className="mt-2 text-sm text-red-600">{file.error}</p>
-                      )}
-
-                      {file.status === 'processing' && (
-                        <div className="mt-3">
-                          <div className="text-xs text-gray-500 mb-1">
-                            Processing with AWS Textract...
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full animate-pulse w-1/3"></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {file.status === 'completed' && file.processingResult && (
-                        <div className="mt-3 p-3 bg-green-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-green-800">
-                              Processing Complete
-                            </span>
-                            <div className="flex items-center space-x-3 text-xs text-green-600">
-                              {file.processingResult.pageCount && (
-                                <span>{file.processingResult.pageCount} pages</span>
-                              )}
-                              {file.processingResult.confidence && (
-                                <span>{file.processingResult.confidence}% confidence</span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="text-sm text-green-700">
-                            <strong>Extracted Actions:</strong>
-                            <div className="mt-1 p-2 bg-white rounded border max-h-32 overflow-y-auto text-xs">
-                              {file.processingResult.extractedText || 'No actions extracted - document may need manual review'}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {getStatusIcon(fileObj.status)}
+                      <button
+                        onClick={() => removeFile(fileObj.id)}
+                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => removeFile(file.id)}
-                    className="text-gray-400 hover:text-red-500 p-1 rounded"
-                    title="Remove file"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  {/* Extracted Actions */}
+                  {fileObj.extractedActions.length > 0 && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Extracted Actions ({fileObj.extractedActions.length})</h4>
+                      <div className="space-y-2">
+                        {fileObj.extractedActions.map((action, index) => (
+                          <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
+                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{action}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        Convert to Actions →
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Processing Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <FileText className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-          <div className="text-sm text-blue-700">
-            <h4 className="font-medium">Action Extraction Workflow</h4>
-            <ul className="mt-1 space-y-1 text-xs">
-              <li>• Upload triggers automatic processing via EventBridge</li>
-              <li>• AWS Textract extracts text from meeting notes and documents</li>
-              <li>• Extracted content can be parsed to auto-generate action items</li>
-              <li>• Processing typically takes 30-60 seconds per document</li>
-            </ul>
+        {/* Info Section */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">How Document Processing Works</h3>
+          <div className="text-blue-800 space-y-2 text-sm">
+            <p>• Documents are uploaded to secure S3 storage</p>
+            <p>• AWS Textract processes documents via EventBridge</p>
+            <p>• AI extracts meeting notes and documents</p>
+            <p>• System auto-generates action items</p>
+            <p>• Actions are created with owners per document</p>
           </div>
-        </div>
-      </div>
-
-      {/* Coming Soon Notice */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex">
-          <Clock className="h-5 w-5 text-yellow-400 mr-2 flex-shrink-0" />
-          <div className="text-sm text-yellow-700">
-            <h4 className="font-medium">Phase 7.2 Feature</h4>
-            <p className="mt-1">
-              Document processing and action extraction will be implemented in Phase 7.2. 
-              The UI is ready - backend integration coming soon!
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+            <p className="text-sm text-yellow-800">
+              <strong>Phase 7.2 Feature:</strong> Action extraction will be implemented in Phase 7.2. The UI is ready - backend integration coming soon!
             </p>
           </div>
         </div>
