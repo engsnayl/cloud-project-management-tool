@@ -1,7 +1,7 @@
 // src/services/api.js
 import axios from 'axios';
 
-// API Configuration - Update with your actual API Gateway URL
+// API Configuration - Using your actual API Gateway URL
 const API_BASE_URL = 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/api/v1';
 
 // Create axios instance with default config
@@ -16,7 +16,7 @@ const api = axios.create({
 // Request interceptor for logging
 api.interceptors.request.use(
   (config) => {
-    console.log(`Making ${config.method.toUpperCase()} request to: ${config.url}`);
+    console.log(`Making ${config.method.toUpperCase()} request to: ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => Promise.reject(error)
@@ -24,7 +24,10 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`Response received:`, response.data);
+    return response;
+  },
   (error) => {
     console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
@@ -32,26 +35,21 @@ api.interceptors.response.use(
 );
 
 // API Methods
-export const apiService = {
+const apiService = {
   // Health Check
   checkHealth: () => api.get('/health'),
 
-  // Actions API (formerly Requirements)
+  // Actions API (Replaced Requirements)
   actions: {
-    getAll: (filters = {}) => {
-      const params = new URLSearchParams();
-      if (filters.projectId) params.append('projectId', filters.projectId);
-      if (filters.owner) params.append('owner', filters.owner);
-      if (filters.status) params.append('status', filters.status);
-      
-      const queryString = params.toString();
-      return api.get(`/actions${queryString ? '?' + queryString : ''}`);
-    },
+    getAll: () => api.get('/actions'),
     create: (actionData) => api.post('/actions', actionData),
     getById: (id) => api.get(`/actions/${id}`),
-    updateStatus: (id, status) => api.put(`/actions/${id}`, { status }),
+    update: (id, data) => api.put(`/actions/${id}`, data),
     delete: (id) => api.delete(`/actions/${id}`),
-    getMyActions: (owner) => api.get(`/actions?owner=${encodeURIComponent(owner)}`),
+    updateStatus: (id, status) => api.put(`/actions/${id}/status`, { status }),
+    getByProject: (projectId) => api.get(`/actions?projectId=${projectId}`),
+    getMyActions: (owner) => api.get(`/actions?owner=${owner}`),
+    triggerReminder: (id) => api.post(`/actions/${id}/remind`),
   },
 
   // Projects API
@@ -61,22 +59,11 @@ export const apiService = {
     getById: (id) => api.get(`/projects/${id}`),
     update: (id, data) => api.put(`/projects/${id}`, data),
     delete: (id) => api.delete(`/projects/${id}`),
-    getActions: (projectId) => api.get(`/actions?projectId=${projectId}`),
+    getActions: (projectId) => api.get(`/projects/${projectId}/actions`),
   },
 
-  // Documents API (for future email/document parsing)
+  // Documents API
   documents: {
-    parseEmail: (emailContent) => api.post('/parse-email', { content: emailContent }),
-    parseDocument: (file) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      return api.post('/parse-document', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    },
     upload: (file, metadata) => {
       const formData = new FormData();
       formData.append('file', file);
@@ -92,27 +79,18 @@ export const apiService = {
     getExtractedText: (documentId) => api.get(`/documents/${documentId}/extracted-text`),
   },
 
-  // Workflows API (for Step Functions monitoring)
+  // Workflows API (Updated for Action Tracking)
   workflows: {
     getStatus: (executionArn) => api.get(`/workflows/status?executionArn=${encodeURIComponent(executionArn)}`),
     getHistory: (actionId) => api.get(`/workflows/history/${actionId}`),
     getAll: () => api.get('/workflows'),
-    triggerReminder: (actionId) => api.post(`/workflows/reminder/${actionId}`),
   },
 
-  // Analytics API
+  // Analytics API (Updated for Actions)
   analytics: {
     getDashboard: () => api.get('/analytics/dashboard'),
     getProjectMetrics: (projectId) => api.get(`/analytics/projects/${projectId}`),
     getActionMetrics: () => api.get('/analytics/actions'),
-    getOverdueActions: () => api.get('/analytics/overdue-actions'),
-  },
-
-  // Email Integration API (for Phase 7.2)
-  email: {
-    processIncoming: (emailData) => api.post('/email/process', emailData),
-    sendReminder: (actionId) => api.post(`/email/reminder/${actionId}`),
-    sendDailySummary: (owner) => api.post('/email/daily-summary', { owner }),
   },
 };
 
@@ -140,4 +118,6 @@ export const handleApiError = (error) => {
   }
 };
 
-export default api;
+// Export both named and default
+export { apiService };
+export default apiService;
