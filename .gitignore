@@ -52,3 +52,16 @@ secrets/
 
 # Local terraform modules
 .terraform.d/
+# Python
+*.pyc
+__pycache__/
+.env
+
+# Dependencies
+node_modules/
+dist/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
