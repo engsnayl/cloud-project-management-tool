@@ -8,6 +8,10 @@
     },
     "ghcr.io/devcontainers/features/node:1": {
       "version": "18"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11",
+      "installTools": true
     }
   },
   "remoteEnv": {
@@ -15,12 +19,14 @@
     "AWS_SECRET_ACCESS_KEY": "${localEnv:AWS_SECRET_ACCESS_KEY}",
     "AWS_DEFAULT_REGION": "${localEnv:AWS_DEFAULT_REGION}"
   },
+  "postCreateCommand": "pip3 install -r scripts/requirements.txt",
   "customizations": {
     "vscode": {
       "extensions": [
         "hashicorp.terraform",
         "amazonwebservices.aws-toolkit-vscode",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "ms-python.python"
       ]
     }
   }
