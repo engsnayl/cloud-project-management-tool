@@ -176,7 +176,9 @@ jobs:
           
           if [ -n "$BUCKET_NAME" ]; then
             echo "Deploying frontend to bucket: $BUCKET_NAME"
-            aws s3 sync ../../frontend/dist/ s3://$BUCKET_NAME/ --delete
+            # Go back to project root and sync the frontend dist folder
+            cd ../../../
+            aws s3 sync frontend/dist/ s3://$BUCKET_NAME/ --delete
             echo "Frontend deployed to dev"
           else
             echo "Could not get S3 bucket name, skipping frontend deployment"
