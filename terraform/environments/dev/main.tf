@@ -1,327 +1,143 @@
 # terraform/environments/dev/main.tf
+
 terraform {
   required_version = ">= 1.0"
-  
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-  }
-  
-  backend "s3" {
-    bucket         = "action-tracker-terraform-state-dev"
-    key            = "dev/terraform.tfstate"
-    region         = "eu-west-1"
-    encrypt        = true
-    dynamodb_table = "action-tracker-terraform-locks"
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
 provider "aws" {
-  region = "eu-west-1"
-  
+  region = var.aws_region
+
   default_tags {
     tags = {
-      Environment = "development"
-      Project     = "ActionTracker"
+      Project     = var.project_name
+      Environment = var.environment
       ManagedBy   = "Terraform"
+      Owner       = var.owner_email
     }
   }
 }
 
-# DynamoDB Table
-resource "aws_dynamodb_table" "actions" {
-  name           = "action-tracker-dev-actions"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "PK"
-  range_key      = "SK"
-
-  attribute {
-    name = "PK"
-    type = "S"
-  }
-
-  attribute {
-    name = "SK"
-    type = "S"
-  }
-
-  tags = {
-    Name        = "ActionTracker Dev Actions"
-    Environment = "development"
+locals {
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    Owner       = var.owner_email
   }
 }
 
-# IAM Role for Lambda
-resource "aws_iam_role" "lambda_role" {
-  name = "action-tracker-dev-lambda-role"
+# VPC Module
+module "vpc" {
+  source = "../../modules/vpc"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Environment = "development"
-  }
-}
-
-# IAM Policy for Lambda
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "action-tracker-dev-lambda-policy"
-  role = aws_iam_role.lambda_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:*:*:*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
-        ]
-        Resource = aws_dynamodb_table.actions.arn
-      }
-    ]
-  })
-}
-
-# CloudWatch Log Group for Lambda
-resource "aws_cloudwatch_log_group" "lambda_logs" {
-  name              = "/aws/lambda/action-tracker-dev-api"
-  retention_in_days = 7
-
-  tags = {
-    Environment = "development"
-  }
-}
-
-# Lambda Function - Using a dummy zip initially, updated by CI/CD
-resource "aws_lambda_function" "api_handler" {
-  function_name = "action-tracker-dev-api"
-  role         = aws_iam_role.lambda_role.arn
-  handler      = "lambda_function.lambda_handler"
-  runtime      = "python3.11"
-  timeout      = 30
-
-  # Create a dummy zip file for initial deployment
-  filename = "${path.module}/dummy-lambda.zip"
-
-  environment {
-    variables = {
-      DYNAMODB_TABLE = aws_dynamodb_table.actions.name
-      ENVIRONMENT    = "dev"
-    }
-  }
-
-  tags = {
-    Environment = "development"
-  }
-
-  depends_on = [
-    aws_iam_role_policy.lambda_policy,
-    aws_cloudwatch_log_group.lambda_logs
-  ]
-
-  # Ignore changes to filename and source_code_hash as they'll be updated by CI/CD
-  lifecycle {
-    ignore_changes = [filename, source_code_hash]
-  }
-}
-
-# Create dummy lambda zip file
-data "archive_file" "dummy_lambda" {
-  type        = "zip"
-  output_path = "${path.module}/dummy-lambda.zip"
+  project_name = var.project_name
+  environment  = var.environment
+  cidr_block   = var.vpc_cidr
   
-  source {
-    content  = <<EOF
-def lambda_handler(event, context):
-    return {
-        'statusCode': 200,
-        'body': 'Placeholder function - will be updated by CI/CD'
-    }
-EOF
-    filename = "lambda_function.py"
-  }
+  tags = local.common_tags
 }
 
-# API Gateway REST API
-resource "aws_api_gateway_rest_api" "main" {
-  name        = "action-tracker-dev-api"
-  description = "Action Tracker Development API"
+# DynamoDB Module
+module "dynamodb" {
+  source = "../../modules/dynamodb"
 
-  tags = {
-    Environment = "development"
-  }
+  project_name = var.project_name
+  environment  = var.environment
+  
+  tags = local.common_tags
 }
 
-# API Gateway Resource (catch all)
-resource "aws_api_gateway_resource" "proxy" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "{proxy+}"
+# S3 Module
+module "s3" {
+  source = "../../modules/s3"
+
+  project_name = var.project_name
+  environment  = var.environment
+  
+  tags = local.common_tags
 }
 
-# API Gateway Method
-resource "aws_api_gateway_method" "proxy" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.proxy.id
-  http_method   = "ANY"
-  authorization = "NONE"
+# Lambda Module
+module "lambda" {
+  source = "../../modules/lambda"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  
+  dynamodb_table_name = module.dynamodb.table_name
+  dynamodb_table_arn  = module.dynamodb.table_arn
+  s3_bucket_name      = module.s3.bucket_name
+  s3_bucket_arn       = module.s3.bucket_arn
+  
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  
+  enable_vpc_access = false
+  
+  tags = local.common_tags
 }
 
-# API Gateway Integration with Lambda
-resource "aws_api_gateway_integration" "lambda" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_method.proxy.resource_id
-  http_method = aws_api_gateway_method.proxy.http_method
+# API Gateway Module (preserve existing)
+module "api_gateway" {
+  source = "../../modules/api_gateway"
 
-  integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  project_name = var.project_name
+  environment  = var.environment
+  
+  api_handler_function_name = module.lambda.api_handler_function_name
+  api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
+  
+  tags = local.common_tags
 }
 
-# Lambda Permission for API Gateway
-resource "aws_lambda_permission" "api_gw" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.api_handler.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+# Step Functions Module (preserve existing)
+module "step_functions" {
+  source = "../../modules/step_functions"
+
+  project_name = var.project_name
+  environment  = var.environment
+  
+  api_handler_function_arn       = module.lambda.api_handler_function_arn
+  document_processor_function_arn = module.lambda.document_processor_function_arn
+  dynamodb_table_arn             = module.dynamodb.table_arn
+  
+  tags = local.common_tags
 }
 
-# API Gateway Deployment
-resource "aws_api_gateway_deployment" "main" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
+# EventBridge Module (preserve existing)
+module "eventbridge" {
+  source = "../../modules/eventbridge"
 
-  triggers = {
-    redeployment = sha1(jsonencode([
-      aws_api_gateway_resource.proxy.id,
-      aws_api_gateway_method.proxy.id,
-      aws_api_gateway_integration.lambda.id,
-    ]))
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  depends_on = [
-    aws_api_gateway_integration.lambda,
-  ]
+  project_name = var.project_name
+  environment  = var.environment
+  
+  api_handler_function_arn                   = module.lambda.api_handler_function_arn
+  document_processor_function_arn            = module.lambda.document_processor_function_arn
+  requirement_approval_workflow_arn          = module.step_functions.requirement_approval_workflow_arn
+  document_processing_workflow_arn           = module.step_functions.document_processing_workflow_arn
+  
+  tags = local.common_tags
 }
 
-# API Gateway Stage
-resource "aws_api_gateway_stage" "dev" {
-  deployment_id = aws_api_gateway_deployment.main.id
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  stage_name    = "dev"
+# Cognito Module (NEW - adding authentication)
+module "cognito" {
+  source = "../../modules/cognito"
 
-  tags = {
-    Environment = "development"
-  }
-}
-
-# S3 Bucket for Frontend
-resource "aws_s3_bucket" "frontend" {
-  bucket = "action-tracker-dev-frontend-${random_string.bucket_suffix.result}"
-
-  tags = {
-    Environment = "development"
-  }
-}
-
-resource "random_string" "bucket_suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-
-resource "aws_s3_bucket_website_configuration" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  index_document {
-    suffix = "index.html"
-  }
-
-  error_document {
-    key = "index.html"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
-resource "aws_s3_bucket_policy" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "PublicReadGetObject"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.frontend.arn}/*"
-      }
-    ]
-  })
-
-  depends_on = [aws_s3_bucket_public_access_block.frontend]
-}
-
-# Outputs
-output "api_gateway_url" {
-  description = "API Gateway endpoint URL"
-  value       = aws_api_gateway_stage.dev.invoke_url
-}
-
-output "dynamodb_table_name" {
-  description = "DynamoDB table name"
-  value       = aws_dynamodb_table.actions.name
-}
-
-output "lambda_function_name" {
-  description = "Lambda function name"
-  value       = aws_lambda_function.api_handler.function_name
-}
-
-output "frontend_bucket_name" {
-  description = "S3 bucket for frontend"
-  value       = aws_s3_bucket.frontend.bucket
-}
-
-output "website_endpoint" {
-  description = "Website endpoint"
-  value       = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
+  project_name = var.project_name
+  environment  = var.environment
+  
+  frontend_url      = var.frontend_url
+  api_gateway_arn   = module.api_gateway.api_arn
+  
+  tags = local.common_tags
 }
