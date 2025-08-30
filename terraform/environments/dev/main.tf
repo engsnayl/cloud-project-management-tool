@@ -118,7 +118,7 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
   }
 }
 
-# Lambda Function
+# Lambda Function - Using a dummy zip initially, updated by CI/CD
 resource "aws_lambda_function" "api_handler" {
   function_name = "action-tracker-dev-api"
   role         = aws_iam_role.lambda_role.arn
@@ -126,8 +126,8 @@ resource "aws_lambda_function" "api_handler" {
   runtime      = "python3.11"
   timeout      = 30
 
-  filename         = "../../../lambda-deployment.zip"
-  source_code_hash = filebase64sha256("../../../lambda-deployment.zip")
+  # Create a dummy zip file for initial deployment
+  filename = "${path.module}/dummy-lambda.zip"
 
   environment {
     variables = {
@@ -144,6 +144,28 @@ resource "aws_lambda_function" "api_handler" {
     aws_iam_role_policy.lambda_policy,
     aws_cloudwatch_log_group.lambda_logs
   ]
+
+  # Ignore changes to filename and source_code_hash as they'll be updated by CI/CD
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# Create dummy lambda zip file
+data "archive_file" "dummy_lambda" {
+  type        = "zip"
+  output_path = "${path.module}/dummy-lambda.zip"
+  
+  source {
+    content  = <<EOF
+def lambda_handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': 'Placeholder function - will be updated by CI/CD'
+    }
+EOF
+    filename = "lambda_function.py"
+  }
 }
 
 # API Gateway REST API

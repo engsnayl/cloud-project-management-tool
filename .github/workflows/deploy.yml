@@ -129,31 +129,34 @@ jobs:
         with:
           terraform_version: 1.5.0
 
-      # Package Lambda function FIRST (before Terraform needs it)
-      - name: Package Lambda function
-        run: |
-          echo "Packaging Lambda function..."
-          cd src/lambdas/api-handler
-          
-          # Create the ZIP file that Terraform expects
-          zip -r ../../../lambda-deployment.zip . -x "*.pyc" "__pycache__/*" "tests/*"
-          
-          # Verify the ZIP was created
-          ls -la ../../../lambda-deployment.zip
-          echo "Lambda function packaged successfully"
-
-      # Deploy infrastructure AFTER Lambda is packaged
+      # Deploy infrastructure FIRST (with dummy Lambda)
       - name: Deploy Infrastructure to Dev
         run: |
           cd terraform/environments/dev
-          
-          # Verify the Lambda ZIP exists before running Terraform
-          ls -la ../../../lambda-deployment.zip
-          
           terraform init
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
           echo "Infrastructure deployed to dev"
+
+      # THEN package and update the Lambda function
+      - name: Package and Deploy Lambda function
+        run: |
+          echo "Packaging Lambda function..."
+          cd src/lambdas/api-handler
+          
+          # Create the ZIP file
+          zip -r lambda-deployment.zip . -x "*.pyc" "__pycache__/*" "tests/*"
+          
+          # Get the Lambda function name from Terraform
+          cd ../../../terraform/environments/dev
+          FUNCTION_NAME=$(terraform output -raw lambda_function_name)
+          
+          # Update the Lambda function code
+          aws lambda update-function-code \
+            --function-name $FUNCTION_NAME \
+            --zip-file fileb://../../../src/lambdas/api-handler/lambda-deployment.zip
+          
+          echo "Lambda function code updated"
 
       # Deploy frontend
       - name: Setup Node.js for frontend build
@@ -190,6 +193,8 @@ jobs:
           
           if [ -n "$API_URL" ]; then
             echo "Testing API at: $API_URL"
+            # Wait a moment for Lambda to be ready
+            sleep 30
             # Simple health check - just verify the API responds
             curl -f "$API_URL/health" || curl -f "$API_URL/" || echo "API health check failed but continuing"
           else
@@ -221,11 +226,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.0
-
-      - name: Package Lambda function
-        run: |
-          cd src/lambdas/api-handler
-          zip -r ../../../lambda-deployment.zip . -x "*.pyc" "__pycache__/*" "tests/*"
 
       - name: Deploy to Staging
         run: |
