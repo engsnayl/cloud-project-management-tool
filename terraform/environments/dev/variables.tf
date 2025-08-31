@@ -12,13 +12,6 @@ variable "environment" {
   default     = "dev"
 }
 
-# Frontend Configuration
-variable "frontend_url" {
-  description = "Frontend application URL for OAuth callbacks"
-  type        = string
-  default     = "http://localhost:3000"
-}
-
 variable "aws_region" {
   description = "AWS region"
   type        = string

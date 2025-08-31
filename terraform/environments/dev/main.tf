@@ -1,5 +1,3 @@
-# terraform/environments/dev/main.tf
-
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -89,27 +87,13 @@ module "lambda" {
 
 # API Gateway Module (preserve existing)
 module "api_gateway" {
-  source = "../../modules/api_gateway"
+  source = "../../modules/api-gateway"
 
   project_name = var.project_name
   environment  = var.environment
   
   api_handler_function_name = module.lambda.api_handler_function_name
   api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
-  
-  tags = local.common_tags
-}
-
-# Step Functions Module (preserve existing)
-module "step_functions" {
-  source = "../../modules/step_functions"
-
-  project_name = var.project_name
-  environment  = var.environment
-  
-  api_handler_function_arn       = module.lambda.api_handler_function_arn
-  document_processor_function_arn = module.lambda.document_processor_function_arn
-  dynamodb_table_arn             = module.dynamodb.table_arn
   
   tags = local.common_tags
 }
@@ -121,10 +105,12 @@ module "eventbridge" {
   project_name = var.project_name
   environment  = var.environment
   
-  api_handler_function_arn                   = module.lambda.api_handler_function_arn
-  document_processor_function_arn            = module.lambda.document_processor_function_arn
-  requirement_approval_workflow_arn          = module.step_functions.requirement_approval_workflow_arn
-  document_processing_workflow_arn           = module.step_functions.document_processing_workflow_arn
+  api_handler_function_arn        = module.lambda.api_handler_function_arn
+  document_processor_function_arn = module.lambda.document_processor_function_arn
+  
+  # Use hardcoded ARNs from your existing Step Functions
+  requirement_approval_workflow_arn  = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-requirement-approval"
+  document_processing_workflow_arn   = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-document-processing"
   
   tags = local.common_tags
 }
@@ -137,7 +123,7 @@ module "cognito" {
   environment  = var.environment
   
   frontend_url      = var.frontend_url
-  api_gateway_arn   = module.api_gateway.api_arn
+  api_gateway_arn   = module.api_gateway.api_gateway_arn  # FIXED: correct output name
   
   tags = local.common_tags
 }

@@ -1,5 +1,3 @@
-# terraform/environments/dev/outputs.tf
-
 # VPC Outputs
 output "vpc_id" {
   description = "ID of the VPC"
@@ -43,7 +41,7 @@ output "s3_bucket_arn" {
   value       = module.s3.bucket_arn
 }
 
-# Lambda Outputs
+# Lambda Outputs (FIXED: use actual output names)
 output "api_handler_function_name" {
   description = "Name of the API handler Lambda function"
   value       = module.lambda.api_handler_function_name
@@ -52,11 +50,6 @@ output "api_handler_function_name" {
 output "api_handler_function_arn" {
   description = "ARN of the API handler Lambda function"
   value       = module.lambda.api_handler_function_arn
-}
-
-output "api_handler_invoke_arn" {
-  description = "Invoke ARN of the API handler Lambda function"
-  value       = module.lambda.api_handler_invoke_arn
 }
 
 output "document_processor_function_name" {
@@ -69,44 +62,33 @@ output "document_processor_function_arn" {
   value       = module.lambda.document_processor_function_arn
 }
 
-# API Gateway Outputs (preserve existing endpoints)
+# API Gateway Outputs (FIXED: use actual output names)
 output "api_gateway_url" {
   description = "URL of the API Gateway"
-  value       = module.api_gateway.api_url
+  value       = module.api_gateway.api_gateway_url
+}
+
+output "api_gateway_arn" {
+  description = "ARN of the API Gateway"
+  value       = module.api_gateway.api_gateway_arn
 }
 
 output "health_endpoint" {
   description = "Health check endpoint"
-  value       = "${module.api_gateway.api_url}/api/v1/health"
+  value       = module.api_gateway.health_endpoint
 }
 
 output "requirements_endpoint" {
   description = "Requirements endpoint"
-  value       = "${module.api_gateway.api_url}/api/v1/requirements"
+  value       = module.api_gateway.requirements_endpoint
 }
 
 output "projects_endpoint" {
   description = "Projects endpoint"
-  value       = "${module.api_gateway.api_url}/api/v1/projects"
+  value       = module.api_gateway.projects_endpoint
 }
 
-# Step Functions Outputs (preserve existing workflows)
-output "requirement_approval_workflow_arn" {
-  description = "ARN of the requirement approval workflow"
-  value       = module.step_functions.requirement_approval_workflow_arn
-}
-
-output "document_processing_workflow_arn" {
-  description = "ARN of the document processing workflow"
-  value       = module.step_functions.document_processing_workflow_arn
-}
-
-output "workflow_console_urls" {
-  description = "AWS Console URLs for workflow monitoring"
-  value       = module.step_functions.workflow_console_urls
-}
-
-# EventBridge Outputs (preserve existing event-driven architecture)
+# EventBridge Outputs
 output "event_bus_name" {
   description = "Name of the custom EventBridge event bus"
   value       = module.eventbridge.event_bus_name
@@ -127,7 +109,7 @@ output "event_dlq_url" {
   value       = module.eventbridge.event_dlq_url
 }
 
-# NEW: Cognito Outputs
+# Cognito Outputs (NEW)
 output "cognito_user_pool_id" {
   description = "Cognito User Pool ID"
   value       = module.cognito.user_pool_id
@@ -169,7 +151,7 @@ output "auth_config" {
     userPoolClientId  = module.cognito.user_pool_client_id
     identityPoolId    = module.cognito.identity_pool_id
     domain            = module.cognito.user_pool_domain
-    apiGatewayUrl     = module.api_gateway.api_url
+    apiGatewayUrl     = module.api_gateway.api_gateway_url
   }
   sensitive = true
 }
