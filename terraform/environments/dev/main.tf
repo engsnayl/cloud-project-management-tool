@@ -72,15 +72,17 @@ module "lambda" {
   project_name        = var.project_name
   environment         = var.environment
   
+  # Override Lambda zip paths with absolute paths
+  api_handler_zip_path = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
+  document_processor_zip_path = "${path.root}/../../../src/lambdas/document-processor/lambda-deployment.zip"
+  
+  # Other existing parameters
   dynamodb_table_name = module.dynamodb.table_name
   dynamodb_table_arn  = module.dynamodb.table_arn
+  vpc_id              = module.vpc.vpc_id
+  private_subnet_ids  = module.vpc.private_subnet_ids
   s3_bucket_name      = module.s3.bucket_name
   s3_bucket_arn       = module.s3.bucket_arn
-  
-  vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = module.vpc.private_subnet_ids
-  
-  enable_vpc_access = false
   
   tags = local.common_tags
 }
@@ -126,4 +128,4 @@ module "cognito" {
   api_gateway_arn   = module.api_gateway.api_gateway_arn  # FIXED: correct output name
   
   tags = local.common_tags
-}
+}# Phase 8.2.2: Add JWT Authorizers
