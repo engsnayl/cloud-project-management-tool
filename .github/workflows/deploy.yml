@@ -129,20 +129,30 @@ jobs:
         with:
           terraform_version: 1.6.0
 
-      # Debug directory structure
-      - name: Debug file structure
+      # Create Lambda deployment packages BEFORE Terraform deploy
+      - name: Create Lambda deployment packages
         run: |
-          echo "Repository root contents:"
-          ls -la
-          echo "Source directory contents:"
-          ls -la src/lambdas/ || echo "src/lambdas directory not found"
-          echo "Current working directory:"
-          pwd
-          echo "Terraform expects files at:"
-          cd terraform/environments/dev
-          realpath ../../src/lambdas/ || echo "Cannot resolve path"
+          echo "Creating Lambda deployment packages at paths Terraform expects..."
+          
+          # Create directories
+          mkdir -p src/lambdas
+          
+          # Create API handler zip
+          cd src/lambdas/api-handler
+          zip -r ../api-handler.zip . -x "*.pyc" "__pycache__/*" "tests/*"
+          
+          # Create document processor zip
+          cd ../document-processor
+          zip -r ../document-processor.zip . -x "*.pyc" "__pycache__/*" "tests/*"
+          
+          # Verify zip files were created correctly
+          cd ../../..
+          ls -la src/lambdas/api-handler.zip
+          ls -la src/lambdas/document-processor.zip
+          
+          echo "Lambda deployment packages created successfully"
 
-      # Deploy infrastructure FIRST (with dummy Lambda)
+      # Deploy infrastructure with the Lambda zip files already in place
       - name: Deploy Infrastructure to Dev
         run: |
           cd terraform/environments/dev
@@ -150,26 +160,6 @@ jobs:
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
           echo "Infrastructure deployed to dev"
-
-      # THEN package and update the Lambda function
-      - name: Package and Deploy Lambda function
-        run: |
-          echo "Packaging Lambda function..."
-          cd src/lambdas/api-handler
-          
-          # Create the ZIP file
-          zip -r lambda-deployment.zip . -x "*.pyc" "__pycache__/*" "tests/*"
-          
-          # Get the Lambda function name from Terraform
-          cd ../../../terraform/environments/dev
-          FUNCTION_NAME=$(terraform output -raw api_handler_function_name)
-          
-          # Update the Lambda function code
-          aws lambda update-function-code \
-            --function-name $FUNCTION_NAME \
-            --zip-file fileb://../../../src/lambdas/api-handler/lambda-deployment.zip
-          
-          echo "Lambda function code updated"
 
       # Skip frontend deployment for now since we don't have S3 website hosting configured
       - name: Frontend deployment status
