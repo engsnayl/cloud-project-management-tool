@@ -84,7 +84,7 @@ resource "aws_iam_role_policy" "lambda_custom" {
 
 # Document Processor Lambda Function
 resource "aws_lambda_function" "document_processor" {
-  filename      = var.document_processor_zip_path
+  filename      = local.document_processor_zip_path
   function_name = "${var.project_name}-${var.environment}-document-processor"
   role         = aws_iam_role.lambda_role.arn
   handler      = "lambda_function.lambda_handler"
@@ -116,7 +116,7 @@ resource "aws_lambda_function" "document_processor" {
 
 # API Handler Lambda Function
 resource "aws_lambda_function" "api_handler" {
-  filename      = var.api_handler_zip_path
+  filename      = local.api_handler_zip_path
   function_name = "${var.project_name}-${var.environment}-api-handler"
   role         = aws_iam_role.lambda_role.arn
   handler      = "lambda_function.lambda_handler"
