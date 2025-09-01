@@ -84,12 +84,14 @@ resource "aws_iam_role_policy" "lambda_custom" {
 
 # Document Processor Lambda Function
 resource "aws_lambda_function" "document_processor" {
-  filename      = local.document_processor_zip_path
+  filename      = var.document_processor_zip_path  # This might now be local.document_processor_zip_path
   function_name = "${var.project_name}-${var.environment}-document-processor"
   role         = aws_iam_role.lambda_role.arn
   handler      = "lambda_function.lambda_handler"
   runtime      = "python3.9"
   timeout      = 60
+  
+  depends_on    = [null_resource.create_document_processor_zip]
 
   environment {
     variables = {
@@ -116,12 +118,14 @@ resource "aws_lambda_function" "document_processor" {
 
 # API Handler Lambda Function
 resource "aws_lambda_function" "api_handler" {
-  filename      = local.api_handler_zip_path
+  filename      = var.api_handler_zip_path  # This might now be local.api_handler_zip_path
   function_name = "${var.project_name}-${var.environment}-api-handler"
   role         = aws_iam_role.lambda_role.arn
   handler      = "lambda_function.lambda_handler"
   runtime      = "python3.9"
   timeout      = 30
+  
+  depends_on    = [null_resource.create_api_handler_zip]
 
   environment {
     variables = {
