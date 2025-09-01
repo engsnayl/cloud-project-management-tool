@@ -129,6 +129,19 @@ jobs:
         with:
           terraform_version: 1.6.0
 
+      # Debug directory structure
+      - name: Debug file structure
+        run: |
+          echo "Repository root contents:"
+          ls -la
+          echo "Source directory contents:"
+          ls -la src/lambdas/ || echo "src/lambdas directory not found"
+          echo "Current working directory:"
+          pwd
+          echo "Terraform expects files at:"
+          cd terraform/environments/dev
+          realpath ../../src/lambdas/ || echo "Cannot resolve path"
+
       # Deploy infrastructure FIRST (with dummy Lambda)
       - name: Deploy Infrastructure to Dev
         run: |
