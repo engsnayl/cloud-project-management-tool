@@ -270,23 +270,23 @@ jobs:
           echo "Integration tests passed"
 
   # Job 5: Notify on Success/Failure
-notify:
-  name: Deployment Notification
-  runs-on: ubuntu-latest
-  needs: [deploy-dev, deploy-staging]
-  if: always()
-  
-  steps:
-    - name: Deployment Summary
-      run: |
-        echo "Deployment Summary:"
-        echo "- Code Quality: ${{ needs.code-quality.result }}"
-        echo "- Infrastructure Check: ${{ needs.infrastructure-check.result }}"
-        echo "- Dev Deployment: ${{ needs.deploy-dev.result }}"
-        echo "- Staging Deployment: ${{ needs.deploy-staging.result }}"
-        
-        if [[ "${{ needs.deploy-dev.result }}" == "success" || "${{ needs.deploy-staging.result }}" == "success" ]]; then
-          echo "Deployment completed successfully!"
-        else
-          echo "Some deployments may have issues. Check the logs above."
-        fi
+  notify:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-dev, deploy-staging]
+    if: always()
+    
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "Deployment Summary:"
+          echo "- Code Quality: ${{ needs.code-quality.result }}"
+          echo "- Infrastructure Check: ${{ needs.infrastructure-check.result }}"
+          echo "- Dev Deployment: ${{ needs.deploy-dev.result }}"
+          echo "- Staging Deployment: ${{ needs.deploy-staging.result }}"
+          
+          if [[ "${{ needs.deploy-dev.result }}" == "success" || "${{ needs.deploy-staging.result }}" == "success" ]]; then
+            echo "Deployment completed successfully!"
+          else
+            echo "Some deployments may have issues. Check the logs above."
+          fi
