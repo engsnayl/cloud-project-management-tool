@@ -47,21 +47,15 @@ secrets/
 *.p12
 
 # Build artifacts
+# Exclude most zip files but include placeholder Lambda zips for CI/CD
 *.zip
+!src/lambdas/api-handler.zip
+!src/lambdas/document-processor.zip
 *.tar.gz
 
 # Local terraform modules
 .terraform.d/
+
 # Python
 *.pyc
 __pycache__/
-.env
-
-# Dependencies
-node_modules/
-dist/
-
-# Terraform
-*.tfstate
-*.tfstate.*
-.terraform/
