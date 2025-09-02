@@ -150,6 +150,14 @@ jobs:
           cd /tmp/lambda-doc
           zip -r /tmp/document-processor-package.zip .
           
+          # Package JWT authorizer
+          cd $GITHUB_WORKSPACE/src/lambdas/jwt-authorizer
+          echo "Packaging JWT authorizer Lambda function..."
+          mkdir -p /tmp/lambda-jwt
+          cp -r * /tmp/lambda-jwt/
+          cd /tmp/lambda-jwt
+          zip -r /tmp/jwt-authorizer-package.zip .
+          
           ls -la /tmp/*.zip
           echo "Lambda packages created successfully"
 
@@ -171,6 +179,7 @@ jobs:
           # Get the Lambda function names from Terraform outputs
           API_HANDLER=$(terraform output -raw api_handler_function_name || echo "")
           DOC_PROCESSOR=$(terraform output -raw document_processor_function_name || echo "")
+          JWT_AUTHORIZER=$(terraform output -raw jwt_authorizer_function_name || echo "")
           
           # Update API handler Lambda function
           if [ -n "$API_HANDLER" ]; then
@@ -190,6 +199,16 @@ jobs:
               --zip-file fileb:///tmp/document-processor-package.zip
           else
             echo "Document Processor function name not found"
+          fi
+          
+          # Update JWT Authorizer Lambda function
+          if [ -n "$JWT_AUTHORIZER" ]; then
+            echo "Updating JWT Authorizer: $JWT_AUTHORIZER"
+            aws lambda update-function-code \
+              --function-name $JWT_AUTHORIZER \
+              --zip-file fileb:///tmp/jwt-authorizer-package.zip
+          else
+            echo "JWT Authorizer function name not found"
           fi
           
           echo "Lambda functions updated successfully"

@@ -1,0 +1,3 @@
+# src/lambdas/jwt-authorizer/requirements.txt
+python-jose[cryptography]>=3.3.0
+requests>=2.25.1

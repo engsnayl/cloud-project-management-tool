@@ -1,5 +1,3 @@
-# terraform/modules/api-gateway/main.tf
-
 # API Gateway REST API
 resource "aws_api_gateway_rest_api" "main" {
   name        = "${var.project_name}-${var.environment}-api"
@@ -122,12 +120,58 @@ resource "aws_api_gateway_resource" "actions" {
   path_part   = "actions"
 }
 
-# Health endpoint - GET method
+# Lambda Authorizer
+resource "aws_api_gateway_authorizer" "jwt_authorizer" {
+  name                   = "${var.project_name}-${var.environment}-jwt-authorizer"
+  rest_api_id            = aws_api_gateway_rest_api.main.id
+  authorizer_uri         = var.jwt_authorizer_invoke_arn
+  authorizer_credentials = aws_iam_role.api_gateway_authorizer.arn
+  type                   = "TOKEN"
+  identity_source        = "method.request.header.Authorization"
+  identity_validation_expression = "^Bearer [\\w-]*\\.[\\w-]*\\.[\\w-]*$"  # JWT token pattern
+}
+
+# IAM role for API Gateway to invoke the authorizer Lambda
+resource "aws_iam_role" "api_gateway_authorizer" {
+  name = "${var.project_name}-${var.environment}-apigw-auth-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Policy to allow API Gateway to invoke the authorizer Lambda
+resource "aws_iam_role_policy" "api_gateway_authorizer" {
+  name = "${var.project_name}-${var.environment}-apigw-auth-policy"
+  role = aws_iam_role.api_gateway_authorizer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = "lambda:InvokeFunction"
+        Effect   = "Allow"
+        Resource = var.jwt_authorizer_invoke_arn
+      }
+    ]
+  })
+}
+
+# Health endpoint - GET method (keep this open for health checks)
 resource "aws_api_gateway_method" "health_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.health.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "NONE"  # No authorization for health checks
 }
 
 # Health endpoint - GET integration
@@ -141,12 +185,13 @@ resource "aws_api_gateway_integration" "health_get" {
   uri                    = var.api_handler_invoke_arn
 }
 
-# Requirements endpoint - GET method
+# Requirements endpoint - GET method with JWT authorizer
 resource "aws_api_gateway_method" "requirements_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.requirements.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 # Requirements endpoint - GET integration
@@ -160,12 +205,13 @@ resource "aws_api_gateway_integration" "requirements_get" {
   uri                    = var.api_handler_invoke_arn
 }
 
-# Requirements endpoint - POST method
+# Requirements endpoint - POST method with JWT authorizer
 resource "aws_api_gateway_method" "requirements_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.requirements.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 # Requirements endpoint - POST integration
@@ -179,12 +225,13 @@ resource "aws_api_gateway_integration" "requirements_post" {
   uri                    = var.api_handler_invoke_arn
 }
 
-# Projects endpoint - GET method
+# Projects endpoint - GET method with JWT authorizer
 resource "aws_api_gateway_method" "projects_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 # Projects endpoint - GET integration
@@ -198,12 +245,13 @@ resource "aws_api_gateway_integration" "projects_get" {
   uri                    = var.api_handler_invoke_arn
 }
 
-# Projects endpoint - POST method
+# Projects endpoint - POST method with JWT authorizer
 resource "aws_api_gateway_method" "projects_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 # Projects endpoint - POST integration
@@ -217,12 +265,13 @@ resource "aws_api_gateway_integration" "projects_post" {
   uri                    = var.api_handler_invoke_arn
 }
 
-# Actions endpoint - GET method
+# Actions endpoint - GET method with JWT authorizer
 resource "aws_api_gateway_method" "actions_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 # Actions endpoint - GET integration
@@ -236,12 +285,13 @@ resource "aws_api_gateway_integration" "actions_get" {
   uri                    = var.api_handler_invoke_arn
 }
 
-# Actions endpoint - POST method
+# Actions endpoint - POST method with JWT authorizer
 resource "aws_api_gateway_method" "actions_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 # Actions endpoint - POST integration

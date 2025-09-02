@@ -63,3 +63,29 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# terraform/modules/lambda/variables.tf - Add these variables
+
+variable "jwt_authorizer_zip_path" {
+  description = "Path to the JWT authorizer Lambda deployment package"
+  type        = string
+  default     = "../../src/lambdas/jwt-authorizer.zip"
+}
+
+variable "cognito_user_pool_id" {
+  description = "Cognito User Pool ID for JWT validation"
+  type        = string
+  default     = ""
+}
+
+variable "cognito_app_client_id" {
+  description = "Cognito App Client ID for JWT validation"
+  type        = string
+  default     = ""
+}
+
+variable "api_gateway_execution_arn" {
+  description = "API Gateway execution ARN prefix for the JWT authorizer"
+  type        = string
+  default     = ""
+}

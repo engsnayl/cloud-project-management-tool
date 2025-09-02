@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -65,16 +69,22 @@ module "s3" {
   tags = local.common_tags
 }
 
-# Lambda Module
+# Lambda Module - COMBINED VERSION
 module "lambda" {
   source = "../../modules/lambda"
 
   project_name        = var.project_name
   environment         = var.environment
   
-  # Override Lambda zip paths with absolute paths
+  # Lambda zip paths
   api_handler_zip_path = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
   document_processor_zip_path = "${path.root}/../../../src/lambdas/document-processor/lambda-deployment.zip"
+  jwt_authorizer_zip_path = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
+  
+  # Cognito parameters for JWT authorizer
+  cognito_user_pool_id   = module.cognito.user_pool_id
+  cognito_app_client_id  = module.cognito.user_pool_client_id
+  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
   
   # Other existing parameters
   dynamodb_table_name = module.dynamodb.table_name
@@ -87,20 +97,25 @@ module "lambda" {
   tags = local.common_tags
 }
 
-# API Gateway Module (preserve existing)
+# API Gateway Module
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
   project_name = var.project_name
   environment  = var.environment
   
+  # JWT authorizer parameters
+  jwt_authorizer_invoke_arn = module.lambda.jwt_authorizer_invoke_arn
+  cognito_user_pool_id      = module.cognito.user_pool_id
+  
+  # Existing parameters
   api_handler_function_name = module.lambda.api_handler_function_name
   api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
   
   tags = local.common_tags
 }
 
-# EventBridge Module (preserve existing)
+# EventBridge Module
 module "eventbridge" {
   source = "../../modules/eventbridge"
 
@@ -117,7 +132,7 @@ module "eventbridge" {
   tags = local.common_tags
 }
 
-# Cognito Module (NEW - adding authentication)
+# Cognito Module
 module "cognito" {
   source = "../../modules/cognito"
 
@@ -125,7 +140,7 @@ module "cognito" {
   environment  = var.environment
   
   frontend_url      = var.frontend_url
-  api_gateway_arn   = module.api_gateway.api_gateway_arn  # FIXED: correct output name
+  api_gateway_arn   = module.api_gateway.api_gateway_arn
   
   tags = local.common_tags
-}# Phase 8.2.2: Add JWT Authorizers
+}

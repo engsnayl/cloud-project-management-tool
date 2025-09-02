@@ -49,3 +49,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "jwt_authorizer_invoke_arn" {
+  description = "Invoke ARN of the JWT authorizer Lambda function"
+  type        = string
+}
+
+variable "cognito_user_pool_id" {
+  description = "Cognito User Pool ID"
+  type        = string
+}
