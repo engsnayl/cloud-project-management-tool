@@ -1,1 +1,5 @@
-def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Document processed!"}
+def lambda_handler(event, context):
+    return {
+        "statusCode": 200,
+        "body": "Document processed!"
+    }
