@@ -177,9 +177,9 @@ jobs:
           cd terraform/environments/dev
           
           # Get the Lambda function names from Terraform outputs
-          API_HANDLER=$(terraform output -raw api_handler_function_name || echo "")
-          DOC_PROCESSOR=$(terraform output -raw document_processor_function_name || echo "")
-          JWT_AUTHORIZER=$(terraform output -raw jwt_authorizer_function_name || echo "")
+          API_HANDLER=$(terraform output -raw api_handler_function_name 2>/dev/null || echo "")
+          DOC_PROCESSOR=$(terraform output -raw document_processor_function_name 2>/dev/null || echo "")
+          JWT_AUTHORIZER=$(terraform output -raw jwt_authorizer_function_name 2>/dev/null || echo "")
           
           # Update API handler Lambda function
           if [ -n "$API_HANDLER" ]; then
@@ -208,7 +208,7 @@ jobs:
               --function-name $JWT_AUTHORIZER \
               --zip-file fileb:///tmp/jwt-authorizer-package.zip
           else
-            echo "JWT Authorizer function name not found"
+            echo "JWT Authorizer function not found in Terraform state - it will be created in the next run"
           fi
           
           echo "Lambda functions updated successfully"
