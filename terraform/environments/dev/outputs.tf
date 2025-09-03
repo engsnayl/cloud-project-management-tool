@@ -155,3 +155,8 @@ output "auth_config" {
   }
   sensitive = true
 }
+
+output "jwt_authorizer_function_name" {
+  description = "Name of the JWT authorizer Lambda function"
+  value       = module.lambda.jwt_authorizer_function_name
+}
