@@ -38,6 +38,16 @@ locals {
   }
 }
 
+locals {
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+    Purpose     = "action-tracker"
+    Owner       = "cloud-engineering-project"
+  }
+}
+
 # VPC Module
 module "vpc" {
   source = "../../modules/vpc"
@@ -143,4 +153,32 @@ module "cognito" {
   api_gateway_arn   = module.api_gateway.api_gateway_arn
   
   tags = local.common_tags
+}
+
+# CloudWatch Monitoring Module
+module "cloudwatch" {
+  source = "../../modules/cloudwatch"
+
+  # Basic Configuration
+  project_name = var.project_name
+  environment  = var.environment
+
+  # Resource Names from other modules
+  api_gateway_name                   = module.api_gateway.api_gateway_name
+  api_handler_function_name          = module.lambda.api_handler_function_name
+  document_processor_function_name   = module.lambda.document_processor_function_name
+  dynamodb_table_name               = module.dynamodb.table_name
+  s3_bucket_name                    = module.s3.bucket_name
+
+  # Alert Configuration
+  alert_email                = var.alert_email  # Add this variable
+  log_retention_days         = 14
+  enable_detailed_monitoring = true
+
+  # Alarm Thresholds
+  high_error_threshold     = 10
+  high_latency_threshold   = 10000  # 10 seconds
+  alarm_evaluation_periods = 2
+
+  tags = local.tags
 }

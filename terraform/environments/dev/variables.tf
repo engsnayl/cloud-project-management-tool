@@ -37,3 +37,21 @@ variable "frontend_url" {
   type        = string
   default     = "http://localhost:3000"
 }
+
+variable "alert_email" {
+  description = "Email address for CloudWatch alerts (leave empty to disable)"
+  type        = string
+  default     = ""  # You can set your email here, e.g., "your.email@domain.com"
+}
+
+variable "enable_monitoring" {
+  description = "Enable CloudWatch monitoring and alerting"
+  type        = bool
+  default     = true
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days"
+  type        = number
+  default     = 14
+}

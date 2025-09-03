@@ -160,3 +160,46 @@ output "jwt_authorizer_function_name" {
   description = "Name of the JWT authorizer Lambda function"
   value       = module.lambda.jwt_authorizer_function_name
 }
+
+# Add this to your terraform/environments/dev/outputs.tf file
+
+# CloudWatch Monitoring Outputs
+output "monitoring_dashboards" {
+  description = "URLs to CloudWatch monitoring dashboards"
+  value = {
+    system_health    = module.cloudwatch.system_health_dashboard_url
+    business_metrics = module.cloudwatch.business_metrics_dashboard_url
+    cost_monitoring  = module.cloudwatch.cost_monitoring_dashboard_url
+  }
+}
+
+output "alert_topic_arn" {
+  description = "ARN of SNS topic for alerts"
+  value       = module.cloudwatch.sns_alerts_topic_arn
+}
+
+output "log_groups" {
+  description = "CloudWatch log group information"
+  value       = module.cloudwatch.log_group_names
+}
+
+# Display monitoring info after deployment
+output "monitoring_setup_complete" {
+  description = "Monitoring setup information"
+  value = <<EOF
+
+CloudWatch Dashboards:
+  - System Health: ${module.cloudwatch.system_health_dashboard_url}
+  - Business Metrics: ${module.cloudwatch.business_metrics_dashboard_url}  
+  - Cost Monitoring: ${module.cloudwatch.cost_monitoring_dashboard_url}
+
+Alerts Configuration:
+  - SNS Topic: ${module.cloudwatch.sns_alerts_topic_arn}
+  - Email Alerts: ${var.alert_email != "" ? "Enabled" : "Disabled"}
+
+Log Groups Created:
+  - API Handler: ${module.cloudwatch.log_group_names.api_handler}
+  - Document Processor: ${module.cloudwatch.log_group_names.document_processor}
+
+EOF
+}
