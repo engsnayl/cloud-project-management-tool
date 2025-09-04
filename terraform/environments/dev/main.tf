@@ -179,6 +179,12 @@ module "cloudwatch" {
   high_error_threshold     = 10
   high_latency_threshold   = 10000  # 10 seconds
   alarm_evaluation_periods = 2
+  overdue_actions_threshold       = var.overdue_actions_threshold
+  critical_alert_email           = var.critical_alert_email
+  business_hours_actions_threshold = 1
+  enable_business_hours_monitoring = false
+  lambda_duration_cost_threshold = 5000
+  api_latency_threshold         = 2000
 
   tags = local.tags
 }

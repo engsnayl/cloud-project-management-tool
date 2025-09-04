@@ -55,3 +55,21 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "overdue_actions_threshold" {
+  description = "Threshold for overdue actions alarm" 
+  type        = number
+  default     = 5
+}
+
+variable "critical_alert_email" {
+  description = "Email for critical alerts"
+  type        = string
+  default     = ""  # Set your email if you want critical alerts
+}
+
+variable "enable_business_hours_monitoring" {
+  description = "Enable business hours monitoring"
+  type        = bool
+  default     = false
+}
