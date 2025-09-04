@@ -67,9 +67,3 @@ variable "critical_alert_email" {
   type        = string
   default     = ""  # Set your email if you want critical alerts
 }
-
-variable "enable_business_hours_monitoring" {
-  description = "Enable business hours monitoring"
-  type        = bool
-  default     = false
-}
