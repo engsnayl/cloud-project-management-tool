@@ -293,3 +293,4 @@ resource "aws_cloudwatch_event_archive" "deliverycommand_archive" {
     source = ["deliverycommand.requirements", "deliverycommand.documents", "deliverycommand.workflows"]
   })
 }
+

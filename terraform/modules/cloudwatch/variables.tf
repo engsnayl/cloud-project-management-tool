@@ -86,3 +86,41 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# Advanced Alerting Configuration
+variable "overdue_actions_threshold" {
+  description = "Threshold for overdue actions alarm"
+  type        = number
+  default     = 5
+}
+
+variable "critical_alert_email" {
+  description = "Email address for critical system alerts (separate from regular alerts)"
+  type        = string
+  default     = ""
+}
+
+variable "enable_business_hours_monitoring" {
+  description = "Enable business hours specific monitoring"
+  type        = bool
+  default     = false
+}
+
+variable "business_hours_actions_threshold" {
+  description = "Minimum actions expected during business hours"
+  type        = number
+  default     = 1
+}
+
+variable "lambda_duration_cost_threshold" {
+  description = "Lambda duration threshold for cost monitoring (milliseconds)"
+  type        = number
+  default     = 5000  # 5 seconds
+}
+
+variable "api_latency_threshold" {
+  description = "API Gateway latency threshold for performance monitoring (milliseconds)"
+  type        = number
+  default     = 2000  # 2 seconds
+}
+

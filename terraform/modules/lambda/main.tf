@@ -226,3 +226,4 @@ resource "null_resource" "create_jwt_authorizer_zip" {
     interpreter = ["bash", "-c"]
   }
 }
+
