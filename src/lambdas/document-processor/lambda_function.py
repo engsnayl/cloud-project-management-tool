@@ -1,5 +1,10 @@
+import json
+
 def lambda_handler(event, context):
     return {
-        "statusCode": 200,
-        "body": "Document processed!"
+        'statusCode': 200,
+        'body': json.dumps({
+            'message': 'Document Processor - Phase 10',
+            'processed': True
+        })
     }
