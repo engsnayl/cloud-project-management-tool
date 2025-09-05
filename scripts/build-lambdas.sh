@@ -5,7 +5,7 @@ set -e
 
 echo "Building Lambda deployment packages..."
 
-# Function to build a Lambda package with proper dependency handling
+# Function to build a Lambda package with clean dependency handling
 build_lambda() {
     local lambda_dir=$1
     local lambda_name=$(basename "$lambda_dir")
@@ -17,7 +17,13 @@ build_lambda() {
         return 0
     fi
     
-    cd "$lambda_dir"
+    # Create temporary build directory
+    local build_dir=$(mktemp -d)
+    local original_dir=$(pwd)
+    
+    # Copy source files to build directory
+    cp -r "$lambda_dir"/* "$build_dir/"
+    cd "$build_dir"
     
     # Install dependencies if requirements.txt exists
     if [ -f "requirements.txt" ]; then
@@ -29,16 +35,21 @@ build_lambda() {
     echo "Creating deployment package for $lambda_name..."
     zip -r lambda-deployment.zip . -x "*.pyc" "__pycache__/*" "tests/*" "*.md" ".git/*" > /dev/null
     
+    # Move zip back to original location
+    mv lambda-deployment.zip "$original_dir/$lambda_dir/"
+    
+    # Clean up build directory
+    cd "$original_dir"
+    rm -rf "$build_dir"
+    
     # Check if zip was created successfully
-    if [ -f "lambda-deployment.zip" ]; then
-        size=$(du -h lambda-deployment.zip | cut -f1)
+    if [ -f "$lambda_dir/lambda-deployment.zip" ]; then
+        size=$(du -h "$lambda_dir/lambda-deployment.zip" | cut -f1)
         echo "✓ Built $lambda_name package: lambda-deployment.zip ($size)"
     else
         echo "✗ Failed to create package for $lambda_name"
         exit 1
     fi
-    
-    cd - > /dev/null
 }
 
 # Build all Lambda functions that exist
@@ -54,6 +65,7 @@ LAMBDA_FUNCTIONS=(
     "api-handler"
     "document-processor"
     "jwt-authorizer"
+    "metrics-publisher"
 )
 
 # Build each Lambda function
