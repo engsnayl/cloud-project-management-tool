@@ -1,0 +1,77 @@
+# .github/workflows/debug-pipeline.yml
+name: Debug CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  debug-staging:
+    name: Debug Staging Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Debug file structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== File structure ==="
+          find . -name "*.tf" -o -name "*.py" -o -name "*.zip" | head -20
+          echo "=== Lambda source structure ==="
+          ls -la src/lambdas/ || echo "src/lambdas not found"
+          echo "=== Lambda zip files ==="
+          find . -name "*lambda-deployment.zip" || echo "No lambda-deployment.zip files found"
+
+      - name: Build Lambda packages
+        run: |
+          echo "Building Lambda packages..."
+          chmod +x scripts/build-lambdas.sh
+          ./scripts/build-lambdas.sh
+          echo "=== After build ==="
+          find . -name "*.zip" | head -10
+
+      - name: Navigate to staging and debug
+        run: |
+          cd terraform/environments/staging
+          echo "=== Current directory after cd ==="
+          pwd
+          echo "=== Files in staging directory ==="
+          ls -la
+          echo "=== Lambda zip paths from staging directory ==="
+          ls -la ../../../src/lambdas/*/lambda-deployment.zip || echo "Lambda zips not found from staging directory"
+
+      - name: Terraform init and plan with verbose output
+        run: |
+          cd terraform/environments/staging
+          echo "=== Terraform init ==="
+          terraform init
+          echo "=== Terraform plan with detailed output ==="
+          TF_LOG=DEBUG terraform plan -no-color 2>&1 | head -50 || echo "Plan failed"
+
+      - name: Check for specific file issues
+        run: |
+          cd terraform/environments/staging
+          echo "=== Checking specific Lambda zip paths ==="
+          file_path="./../../../src/lambdas/api-handler/lambda-deployment.zip"
+          if [ -f "$file_path" ]; then
+            echo "✓ Found: $file_path"
+            ls -la "$file_path"
+          else
+            echo "✗ Missing: $file_path"
+          fi
