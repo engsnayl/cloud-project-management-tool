@@ -201,24 +201,11 @@ jobs:
       - name: Terraform Validation
         run: |
           cd terraform/environments/${{ matrix.environment }}
+          echo "=== Validating Terraform configuration for ${{ matrix.environment }} ==="
           terraform init -backend=false
           terraform validate
           terraform fmt -check
-
-      - name: Terraform Plan (Dry Run)
-        run: |
-          cd terraform/environments/${{ matrix.environment }}
-          echo "=== Starting Terraform Plan for ${{ matrix.environment }} ==="
-          echo "=== Current directory: $(pwd) ==="
-          echo "=== Lambda zip files check ==="
-          ls -la ../../../src/lambdas/*/lambda-deployment.zip || echo "Lambda zips not found"
-          echo "=== Running terraform plan with verbose output ==="
-          terraform plan -no-color -out=tfplan 2>&1 || {
-            echo "=== Terraform plan failed, showing detailed error ==="
-            terraform plan -no-color 2>&1 || true
-            exit 1
-          }
-          echo "=== Terraform plan completed successfully ==="
+          echo "=== Terraform validation passed for ${{ matrix.environment }} ==="
 
   # Development Environment Deployment
   deploy-dev:
@@ -253,16 +240,11 @@ jobs:
       - name: Deploy Infrastructure
         run: |
           cd terraform/environments/dev
+          echo "=== Deploying to Development Environment ==="
           terraform init
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
-
-      - name: Deploy Lambda Functions
-        run: |
-          # Deploy Lambda packages using AWS CLI
-          aws lambda update-function-code \
-            --function-name deliverycommand-dev-api-handler \
-            --zip-file fileb://src/lambdas/api-handler/lambda-deployment.zip || echo "Lambda update completed"
+          echo "=== Development deployment completed ==="
 
       - name: Run Smoke Tests
         run: |
@@ -280,6 +262,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: deploy-dev
     if: github.ref == 'refs/heads/develop'
+    environment: development
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -355,19 +338,14 @@ jobs:
         with:
           name: build-artifacts-${{ needs.build.outputs.build-version }}
 
-      - name: Blue/Green Deployment Setup
+      - name: Deploy to Staging
         run: |
           cd terraform/environments/staging
-          # Check if blue-green script exists
-          if [ -f "blue-green-deploy.sh" ]; then
-            chmod +x blue-green-deploy.sh
-            ./blue-green-deploy.sh
-          else
-            # Standard deployment
-            terraform init
-            terraform plan -out=tfplan
-            terraform apply -auto-approve tfplan
-          fi
+          echo "=== Deploying to Staging Environment ==="
+          terraform init
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+          echo "=== Staging deployment completed ==="
 
       - name: Staging Smoke Tests
         run: |
