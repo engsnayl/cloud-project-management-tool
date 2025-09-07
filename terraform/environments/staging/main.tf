@@ -136,15 +136,15 @@ module "cloudwatch" {
   alert_email                      = var.alert_email
   log_retention_days               = var.log_retention_days
   enable_detailed_monitoring       = var.enable_monitoring
-  high_error_threshold             = 5   # Lower threshold for staging
+  high_error_threshold             = 5    # Lower threshold for staging
   high_latency_threshold           = 8000 # Slightly lower for staging
   alarm_evaluation_periods         = 2
   overdue_actions_threshold        = var.overdue_actions_threshold
   critical_alert_email             = var.critical_alert_email
   business_hours_actions_threshold = 1
-  enable_business_hours_monitoring = true  # Enable for staging
-  lambda_duration_cost_threshold   = 3000  # Lower for staging
-  api_latency_threshold            = 1500   # Stricter for staging
+  enable_business_hours_monitoring = true # Enable for staging
+  lambda_duration_cost_threshold   = 3000 # Lower for staging
+  api_latency_threshold            = 1500 # Stricter for staging
 
   tags = local.common_tags
 

@@ -53,7 +53,7 @@ variable "enable_nat_gateway" {
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB"
   type        = bool
-  default     = true # Enable in staging for better testing
+  default     = true # Enable for staging environment
 }
 
 # S3 Configuration - Updated to match module
@@ -66,7 +66,7 @@ variable "enable_versioning" {
 variable "enable_lifecycle_policy" {
   description = "Enable S3 lifecycle policy"
   type        = bool
-  default     = true # Enable in staging
+  default     = true # Enable for staging
 }
 
 variable "document_retention_days" {
@@ -78,7 +78,7 @@ variable "document_retention_days" {
 variable "allowed_origins" {
   description = "CORS allowed origins"
   type        = list(string)
-  default     = ["https://staging.actiontracker.com"] # Staging-specific origins
+  default     = ["https://staging.deliverycommand.com", "https://staging-app.deliverycommand.com"]
 }
 
 # API Gateway Configuration
@@ -92,14 +92,14 @@ variable "api_stage_name" {
 variable "frontend_url" {
   description = "Frontend application URL for OAuth callbacks"
   type        = string
-  default     = "https://staging.actiontracker.com"
+  default     = "https://staging.deliverycommand.com"
 }
 
 # Monitoring Configuration
 variable "alert_email" {
   description = "Email address for CloudWatch alerts"
   type        = string
-  default     = "alerts-staging@actiontracker.com"
+  default     = "staging-alerts@example.com"
 }
 
 variable "enable_monitoring" {
@@ -111,25 +111,19 @@ variable "enable_monitoring" {
 variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number
-  default     = 14
+  default     = 30 # Longer retention for staging
 }
 
 variable "overdue_actions_threshold" {
   description = "Threshold for overdue actions alarm"
   type        = number
-  default     = 5
+  default     = 3 # Lower threshold for staging
 }
 
 variable "critical_alert_email" {
   description = "Email for critical alerts"
   type        = string
-  default     = "critical-staging@actiontracker.com"
-}
-
-variable "enable_business_hours_monitoring" {
-  description = "Enable business hours specific monitoring"
-  type        = bool
-  default     = true
+  default     = "critical-staging@example.com"
 }
 
 # Step Functions Configuration
