@@ -62,7 +62,7 @@ variable "jwt_authorizer_zip_path" {
   type        = string
 }
 
-# Cognito integration
+# Cognito integration - MAKE THESE OPTIONAL
 variable "cognito_user_pool_id" {
   description = "Cognito User Pool ID for JWT validation"
   type        = string

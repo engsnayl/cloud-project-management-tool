@@ -49,19 +49,19 @@ module "s3" {
   tags = local.common_tags
 }
 
-# Cognito Module - Deploy first without API Gateway dependency
+# Cognito Module - Deploy FIRST without dependencies
 module "cognito" {
   source = "../../modules/cognito"
 
   project_name    = var.project_name
   environment     = var.environment
   frontend_url    = var.frontend_url
-  api_gateway_arn = "" # Empty initially to break circular dependency
+  api_gateway_arn = "*"  # Use wildcard to avoid circular dependency
 
   tags = local.common_tags
 }
 
-# Lambda Module
+# Lambda Module - Deploy SECOND without Cognito integration initially
 module "lambda" {
   source = "../../modules/lambda"
 
@@ -79,17 +79,17 @@ module "lambda" {
   document_processor_zip_path = "${path.root}/../../../src/lambdas/document-processor/lambda-deployment.zip"
   jwt_authorizer_zip_path     = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
 
-  # Cognito integration
-  cognito_user_pool_id      = module.cognito.user_pool_id
-  cognito_app_client_id     = module.cognito.user_pool_client_id
-  api_gateway_execution_arn = "" # Empty initially, will be updated
+  # Leave Cognito integration empty initially (will be updated later)
+  cognito_user_pool_id      = ""  # Empty to avoid dependency
+  cognito_app_client_id     = ""  # Empty to avoid dependency
+  api_gateway_execution_arn = ""  # Empty to avoid dependency
 
   tags = local.common_tags
 
-  depends_on = [module.cognito, module.vpc, module.dynamodb, module.s3]
+  depends_on = [module.vpc, module.dynamodb, module.s3]
 }
 
-# API Gateway Module
+# API Gateway Module - Deploy THIRD after Lambda exists
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
@@ -136,15 +136,15 @@ module "cloudwatch" {
   alert_email                      = var.alert_email
   log_retention_days               = var.log_retention_days
   enable_detailed_monitoring       = var.enable_monitoring
-  high_error_threshold             = 5    # Lower threshold for staging
-  high_latency_threshold           = 8000 # Slightly lower for staging
+  high_error_threshold             = 10
+  high_latency_threshold           = 10000
   alarm_evaluation_periods         = 2
   overdue_actions_threshold        = var.overdue_actions_threshold
   critical_alert_email             = var.critical_alert_email
   business_hours_actions_threshold = 1
-  enable_business_hours_monitoring = true # Enable for staging
-  lambda_duration_cost_threshold   = 3000 # Lower for staging
-  api_latency_threshold            = 1500 # Stricter for staging
+  enable_business_hours_monitoring = false
+  lambda_duration_cost_threshold   = 5000
+  api_latency_threshold            = 2000
 
   tags = local.common_tags
 

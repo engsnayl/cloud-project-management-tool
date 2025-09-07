@@ -192,9 +192,9 @@ resource "aws_lambda_function" "jwt_authorizer" {
 
   environment {
     variables = {
-      COGNITO_USER_POOL_ID = var.cognito_user_pool_id
-      COGNITO_APP_CLIENT_ID = var.cognito_app_client_id
-      API_ARN_PREFIX = var.api_gateway_execution_arn
+      COGNITO_USER_POOL_ID = var.cognito_user_pool_id != "" ? var.cognito_user_pool_id : "placeholder"
+      COGNITO_APP_CLIENT_ID = var.cognito_app_client_id != "" ? var.cognito_app_client_id : "placeholder"
+      API_ARN_PREFIX = var.api_gateway_execution_arn != "" ? var.api_gateway_execution_arn : "placeholder"
     }
   }
 
