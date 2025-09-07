@@ -43,35 +43,26 @@ variable "s3_bucket_arn" {
 variable "enable_vpc_access" {
   description = "Enable VPC access for Lambda functions"
   type        = bool
-  default     = false  # Keep simple for dev
+  default     = false
+}
+
+# Lambda deployment packages
+variable "api_handler_zip_path" {
+  description = "Path to the API handler Lambda deployment package"
+  type        = string
 }
 
 variable "document_processor_zip_path" {
   description = "Path to the document processor Lambda deployment package"
   type        = string
-  default     = "../../src/lambdas/document-processor.zip"  # This path should be relative to the environment
 }
-
-variable "api_handler_zip_path" {
-  description = "Path to the API handler Lambda deployment package"
-  type        = string
-  default     = "../../src/lambdas/api-handler.zip"
-}
-
-variable "tags" {
-  description = "Additional tags to apply to resources"
-  type        = map(string)
-  default     = {}
-}
-
-# terraform/modules/lambda/variables.tf - Add these variables
 
 variable "jwt_authorizer_zip_path" {
   description = "Path to the JWT authorizer Lambda deployment package"
   type        = string
-  default     = "../../src/lambdas/jwt-authorizer.zip"
 }
 
+# Cognito integration
 variable "cognito_user_pool_id" {
   description = "Cognito User Pool ID for JWT validation"
   type        = string
@@ -88,4 +79,10 @@ variable "api_gateway_execution_arn" {
   description = "API Gateway execution ARN prefix for the JWT authorizer"
   type        = string
   default     = ""
+}
+
+variable "tags" {
+  description = "Additional tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }

@@ -146,12 +146,12 @@ output "oauth_logout_url" {
 output "auth_config" {
   description = "Complete authentication configuration for frontend"
   value = {
-    region            = var.aws_region
-    userPoolId        = module.cognito.user_pool_id
-    userPoolClientId  = module.cognito.user_pool_client_id
-    identityPoolId    = module.cognito.identity_pool_id
-    domain            = module.cognito.user_pool_domain
-    apiGatewayUrl     = module.api_gateway.api_gateway_url
+    region           = var.aws_region
+    userPoolId       = module.cognito.user_pool_id
+    userPoolClientId = module.cognito.user_pool_client_id
+    identityPoolId   = module.cognito.identity_pool_id
+    domain           = module.cognito.user_pool_domain
+    apiGatewayUrl    = module.api_gateway.api_gateway_url
   }
   sensitive = true
 }
@@ -186,7 +186,7 @@ output "log_groups" {
 # Display monitoring info after deployment
 output "monitoring_setup_complete" {
   description = "Monitoring setup information"
-  value = <<EOF
+  value       = <<EOF
 
 CloudWatch Dashboards:
   - System Health: ${module.cloudwatch.system_health_dashboard_url}

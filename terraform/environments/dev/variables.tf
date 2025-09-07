@@ -31,6 +31,63 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/16"
 }
 
+variable "public_subnet_count" {
+  description = "Number of public subnets"
+  type        = number
+  default     = 2
+}
+
+variable "private_subnet_count" {
+  description = "Number of private subnets"
+  type        = number
+  default     = 2
+}
+
+variable "enable_nat_gateway" {
+  description = "Enable NAT Gateway (costs money)"
+  type        = bool
+  default     = false
+}
+
+# DynamoDB Configuration
+variable "enable_point_in_time_recovery" {
+  description = "Enable point-in-time recovery for DynamoDB"
+  type        = bool
+  default     = false
+}
+
+# S3 Configuration - Updated to match module
+variable "enable_versioning" {
+  description = "Enable S3 bucket versioning"
+  type        = bool
+  default     = true
+}
+
+variable "enable_lifecycle_policy" {
+  description = "Enable S3 lifecycle policy"
+  type        = bool
+  default     = false
+}
+
+variable "document_retention_days" {
+  description = "Document retention in days"
+  type        = number
+  default     = 365
+}
+
+variable "allowed_origins" {
+  description = "CORS allowed origins"
+  type        = list(string)
+  default     = ["*"]
+}
+
+# API Gateway Configuration
+variable "api_stage_name" {
+  description = "API Gateway stage name"
+  type        = string
+  default     = "dev"
+}
+
 # Frontend Configuration
 variable "frontend_url" {
   description = "Frontend application URL for OAuth callbacks"
@@ -38,10 +95,11 @@ variable "frontend_url" {
   default     = "http://localhost:3000"
 }
 
+# Monitoring Configuration
 variable "alert_email" {
-  description = "Email address for CloudWatch alerts (leave empty to disable)"
+  description = "Email address for CloudWatch alerts"
   type        = string
-  default     = ""  # You can set your email here, e.g., "your.email@domain.com"
+  default     = ""
 }
 
 variable "enable_monitoring" {
@@ -57,7 +115,7 @@ variable "log_retention_days" {
 }
 
 variable "overdue_actions_threshold" {
-  description = "Threshold for overdue actions alarm" 
+  description = "Threshold for overdue actions alarm"
   type        = number
   default     = 5
 }
@@ -65,5 +123,18 @@ variable "overdue_actions_threshold" {
 variable "critical_alert_email" {
   description = "Email for critical alerts"
   type        = string
-  default     = ""  # Set your email if you want critical alerts
+  default     = ""
+}
+
+# Step Functions Configuration
+variable "requirement_approval_workflow_arn" {
+  description = "ARN of the requirement approval Step Functions workflow"
+  type        = string
+  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-requirement-approval"
+}
+
+variable "document_processing_workflow_arn" {
+  description = "ARN of the document processing Step Functions workflow"
+  type        = string
+  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-document-processing"
 }
