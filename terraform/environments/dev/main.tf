@@ -56,7 +56,7 @@ module "cognito" {
   project_name    = var.project_name
   environment     = var.environment
   frontend_url    = var.frontend_url
-  api_gateway_arn = "" # Will be updated after API Gateway is created
+  api_gateway_arn = module.api_gateway.api_gateway_execution_arn
 
   tags = local.common_tags
 }
