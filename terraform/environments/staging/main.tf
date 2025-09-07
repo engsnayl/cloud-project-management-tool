@@ -56,7 +56,7 @@ module "cognito" {
   project_name    = var.project_name
   environment     = var.environment
   frontend_url    = var.frontend_url
-  api_gateway_arn = "*"  # Use wildcard to avoid circular dependency
+  api_gateway_arn = "*" # Use wildcard to avoid circular dependency
 
   tags = local.common_tags
 }
@@ -80,9 +80,9 @@ module "lambda" {
   jwt_authorizer_zip_path     = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
 
   # Leave Cognito integration empty initially (will be updated later)
-  cognito_user_pool_id      = ""  # Empty to avoid dependency
-  cognito_app_client_id     = ""  # Empty to avoid dependency
-  api_gateway_execution_arn = ""  # Empty to avoid dependency
+  cognito_user_pool_id      = "" # Empty to avoid dependency
+  cognito_app_client_id     = "" # Empty to avoid dependency
+  api_gateway_execution_arn = "" # Empty to avoid dependency
 
   tags = local.common_tags
 
