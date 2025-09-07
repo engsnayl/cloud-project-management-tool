@@ -49,14 +49,14 @@ module "s3" {
   tags = local.common_tags
 }
 
-# Cognito Module
+# Cognito Module - Deploy first without API Gateway dependency
 module "cognito" {
   source = "../../modules/cognito"
 
   project_name    = var.project_name
   environment     = var.environment
   frontend_url    = var.frontend_url
-  api_gateway_arn = "" # Will be updated after API Gateway is created
+  api_gateway_arn = "" # Empty initially to break circular dependency
 
   tags = local.common_tags
 }
@@ -82,7 +82,7 @@ module "lambda" {
   # Cognito integration
   cognito_user_pool_id      = module.cognito.user_pool_id
   cognito_app_client_id     = module.cognito.user_pool_client_id
-  api_gateway_execution_arn = "" # Will be populated after API Gateway is created
+  api_gateway_execution_arn = "" # Empty initially, will be updated
 
   tags = local.common_tags
 
@@ -103,7 +103,7 @@ module "api_gateway" {
 
   tags = local.common_tags
 
-  depends_on = [module.lambda, module.cognito]
+  depends_on = [module.lambda]
 }
 
 # EventBridge Module
@@ -136,15 +136,15 @@ module "cloudwatch" {
   alert_email                      = var.alert_email
   log_retention_days               = var.log_retention_days
   enable_detailed_monitoring       = var.enable_monitoring
-  high_error_threshold             = 10
-  high_latency_threshold           = 10000
+  high_error_threshold             = 5   # Lower threshold for staging
+  high_latency_threshold           = 8000 # Slightly lower for staging
   alarm_evaluation_periods         = 2
   overdue_actions_threshold        = var.overdue_actions_threshold
   critical_alert_email             = var.critical_alert_email
   business_hours_actions_threshold = 1
-  enable_business_hours_monitoring = var.enable_business_hours_monitoring
-  lambda_duration_cost_threshold   = 5000
-  api_latency_threshold            = 2000
+  enable_business_hours_monitoring = true  # Enable for staging
+  lambda_duration_cost_threshold   = 3000  # Lower for staging
+  api_latency_threshold            = 1500   # Stricter for staging
 
   tags = local.common_tags
 
