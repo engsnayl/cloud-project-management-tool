@@ -239,7 +239,7 @@ resource "aws_iam_role_policy" "authenticated" {
         Action = [
           "execute-api:Invoke"
         ]
-        Resource = "${var.api_gateway_arn}/*"
+        Resource = var.api_gateway_arn == "*" ? "*" : "${var.api_gateway_arn}/*"
       }
     ]
   })
