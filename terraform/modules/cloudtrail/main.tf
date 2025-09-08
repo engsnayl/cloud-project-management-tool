@@ -72,11 +72,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail_logs" {
       storage_class = "STANDARD_IA"
     }
 
-    transition {
-      days          = 90
-      storage_class = "GLACIER"
-    }
-
     expiration {
       days = var.cloudtrail_retention_days
     }
