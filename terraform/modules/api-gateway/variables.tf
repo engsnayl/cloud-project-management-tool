@@ -35,13 +35,13 @@ variable "enable_cors" {
 variable "cors_allowed_origins" {
   description = "Allowed origins for CORS"
   type        = list(string)
-  default     = ["*"]  # Restrict in production
+  default     = ["*"] # Restrict in production
 }
 
 variable "enable_api_key" {
   description = "Enable API key requirement"
   type        = bool
-  default     = false  # Keep simple for dev
+  default     = false # Keep simple for dev
 }
 
 variable "tags" {

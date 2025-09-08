@@ -3,7 +3,7 @@
 resource "aws_api_gateway_rest_api" "main" {
   name        = "${var.project_name}-${var.environment}-api"
   description = "DeliveryCommand API for requirements and project management"
-  
+
   endpoint_configuration {
     types = ["REGIONAL"]
   }
@@ -123,13 +123,13 @@ resource "aws_api_gateway_resource" "actions" {
 
 # Lambda Authorizer
 resource "aws_api_gateway_authorizer" "jwt_authorizer" {
-  name                   = "${var.project_name}-${var.environment}-jwt-authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.main.id
-  authorizer_uri         = var.jwt_authorizer_invoke_arn
-  authorizer_credentials = aws_iam_role.api_gateway_authorizer.arn
-  type                   = "TOKEN"
-  identity_source        = "method.request.header.Authorization"
-  identity_validation_expression = "^Bearer [\\w-]*\\.[\\w-]*\\.[\\w-]*$"  # JWT token pattern
+  name                           = "${var.project_name}-${var.environment}-jwt-authorizer"
+  rest_api_id                    = aws_api_gateway_rest_api.main.id
+  authorizer_uri                 = var.jwt_authorizer_invoke_arn
+  authorizer_credentials         = aws_iam_role.api_gateway_authorizer.arn
+  type                           = "TOKEN"
+  identity_source                = "method.request.header.Authorization"
+  identity_validation_expression = "^Bearer [\\w-]*\\.[\\w-]*\\.[\\w-]*$" # JWT token pattern
 }
 
 # IAM role for API Gateway to invoke the authorizer Lambda
@@ -172,7 +172,7 @@ resource "aws_api_gateway_method" "health_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.health.id
   http_method   = "GET"
-  authorization = "NONE"  # No authorization for health checks
+  authorization = "NONE" # No authorization for health checks
 }
 
 # Health endpoint - GET integration
@@ -182,8 +182,8 @@ resource "aws_api_gateway_integration" "health_get" {
   http_method = aws_api_gateway_method.health_get.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # Requirements endpoint - GET method with JWT authorizer
@@ -202,8 +202,8 @@ resource "aws_api_gateway_integration" "requirements_get" {
   http_method = aws_api_gateway_method.requirements_get.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # Requirements endpoint - POST method with JWT authorizer
@@ -222,8 +222,8 @@ resource "aws_api_gateway_integration" "requirements_post" {
   http_method = aws_api_gateway_method.requirements_post.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # Projects endpoint - GET method with JWT authorizer
@@ -242,8 +242,8 @@ resource "aws_api_gateway_integration" "projects_get" {
   http_method = aws_api_gateway_method.projects_get.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # Projects endpoint - POST method with JWT authorizer
@@ -262,8 +262,8 @@ resource "aws_api_gateway_integration" "projects_post" {
   http_method = aws_api_gateway_method.projects_post.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # Actions endpoint - GET method with JWT authorizer
@@ -282,8 +282,8 @@ resource "aws_api_gateway_integration" "actions_get" {
   http_method = aws_api_gateway_method.actions_get.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # Actions endpoint - POST method with JWT authorizer
@@ -302,8 +302,8 @@ resource "aws_api_gateway_integration" "actions_post" {
   http_method = aws_api_gateway_method.actions_post.http_method
 
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = var.api_handler_invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = var.api_handler_invoke_arn
 }
 
 # CORS OPTIONS methods

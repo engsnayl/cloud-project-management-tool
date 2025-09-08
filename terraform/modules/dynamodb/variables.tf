@@ -13,13 +13,13 @@ variable "environment" {
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB table"
   type        = bool
-  default     = false  # Disable in dev to save costs
+  default     = false # Disable in dev to save costs
 }
 
 variable "deletion_protection" {
   description = "Enable deletion protection for DynamoDB table"
   type        = bool
-  default     = false  # Allow deletion in dev
+  default     = false # Allow deletion in dev
 }
 
 variable "tags" {

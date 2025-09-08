@@ -15,7 +15,7 @@ resource "aws_cognito_user_pool" "main" {
 
   # User attributes
   alias_attributes = ["email"]
-  
+
   # Auto-verified attributes
   auto_verified_attributes = ["email"]
 
@@ -44,7 +44,7 @@ resource "aws_cognito_user_pool" "main" {
     name                = "role"
     required            = false
     mutable             = true
-    
+
     string_attribute_constraints {
       min_length = 1
       max_length = 50
@@ -91,15 +91,15 @@ resource "aws_cognito_user_pool_client" "main" {
   user_pool_id = aws_cognito_user_pool.main.id
 
   # OAuth settings
-  generate_secret                      = false
-  prevent_user_existence_errors       = "ENABLED"
-  enable_token_revocation             = true
+  generate_secret                               = false
+  prevent_user_existence_errors                 = "ENABLED"
+  enable_token_revocation                       = true
   enable_propagate_additional_user_context_data = false
 
   # Token validity
-  access_token_validity  = 1   # 1 hour
-  id_token_validity     = 1   # 1 hour  
-  refresh_token_validity = 30  # 30 days
+  access_token_validity  = 1  # 1 hour
+  id_token_validity      = 1  # 1 hour  
+  refresh_token_validity = 30 # 30 days
 
   token_validity_units {
     access_token  = "hours"
@@ -114,12 +114,12 @@ resource "aws_cognito_user_pool_client" "main" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code", "implicit"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
-  
+
   callback_urls = [
     "http://localhost:3000/callback",
     var.frontend_url != "" ? "${var.frontend_url}/callback" : "http://localhost:3000/callback"
   ]
-  
+
   logout_urls = [
     "http://localhost:3000/",
     var.frontend_url != "" ? var.frontend_url : "http://localhost:3000/"

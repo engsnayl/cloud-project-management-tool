@@ -87,25 +87,25 @@ resource "aws_sfn_state_machine" "requirement_approval" {
     StartAt = "ValidateRequirement"
     States = {
       ValidateRequirement = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "validate-requirement"
+          "action"          = "validate-requirement"
           "requirementId.$" = "$.requirementId"
         }
         Next = "CheckValidation"
         Retry = [
           {
-            ErrorEquals = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"]
+            ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"]
             IntervalSeconds = 2
-            MaxAttempts = 3
-            BackoffRate = 2.0
+            MaxAttempts     = 3
+            BackoffRate     = 2.0
           }
         ]
         Catch = [
           {
             ErrorEquals = ["States.ALL"]
-            Next = "ValidationFailed"
+            Next        = "ValidationFailed"
           }
         ]
       }
@@ -114,70 +114,70 @@ resource "aws_sfn_state_machine" "requirement_approval" {
         Type = "Choice"
         Choices = [
           {
-            Variable = "$.validation.isValid"
+            Variable      = "$.validation.isValid"
             BooleanEquals = true
-            Next = "UpdateStatusToReview"
+            Next          = "UpdateStatusToReview"
           }
         ]
         Default = "ValidationFailed"
       }
 
       ValidationFailed = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "update-requirement-status"
+          "action"          = "update-requirement-status"
           "requirementId.$" = "$.requirementId"
-          "status" = "VALIDATION_FAILED"
-          "reason.$" = "$.validation.reason"
+          "status"          = "VALIDATION_FAILED"
+          "reason.$"        = "$.validation.reason"
         }
         Next = "NotifyValidationFailed"
       }
 
       NotifyValidationFailed = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "validation-failed"
+          "action"          = "send-notification"
+          "type"            = "validation-failed"
           "requirementId.$" = "$.requirementId"
         }
         End = true
       }
 
       UpdateStatusToReview = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "update-requirement-status"
+          "action"          = "update-requirement-status"
           "requirementId.$" = "$.requirementId"
-          "status" = "PENDING_REVIEW"
+          "status"          = "PENDING_REVIEW"
         }
         Next = "NotifyReviewersNeeded"
       }
 
       NotifyReviewersNeeded = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "review-needed"
+          "action"          = "send-notification"
+          "type"            = "review-needed"
           "requirementId.$" = "$.requirementId"
         }
         Next = "WaitForReview"
       }
 
       WaitForReview = {
-        Type = "Wait"
+        Type    = "Wait"
         Seconds = var.review_timeout_seconds
-        Next = "CheckReviewStatus"
+        Next    = "CheckReviewStatus"
       }
 
       CheckReviewStatus = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "get-requirement-status"
+          "action"          = "get-requirement-status"
           "requirementId.$" = "$.requirementId"
         }
         Next = "EvaluateReview"
@@ -187,97 +187,97 @@ resource "aws_sfn_state_machine" "requirement_approval" {
         Type = "Choice"
         Choices = [
           {
-            Variable = "$.requirement.status"
+            Variable     = "$.requirement.status"
             StringEquals = "APPROVED"
-            Next = "HandleApproval"
+            Next         = "HandleApproval"
           },
           {
-            Variable = "$.requirement.status"
+            Variable     = "$.requirement.status"
             StringEquals = "REJECTED"
-            Next = "HandleRejection"
+            Next         = "HandleRejection"
           },
           {
-            Variable = "$.requirement.status"
+            Variable     = "$.requirement.status"
             StringEquals = "PENDING_REVIEW"
-            Next = "HandleTimeout"
+            Next         = "HandleTimeout"
           }
         ]
         Default = "HandleTimeout"
       }
 
       HandleApproval = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "update-requirement-status"
+          "action"          = "update-requirement-status"
           "requirementId.$" = "$.requirementId"
-          "status" = "APPROVED"
-          "approvedAt.$" = "$$.State.EnteredTime"
+          "status"          = "APPROVED"
+          "approvedAt.$"    = "$$.State.EnteredTime"
         }
         Next = "NotifyApproval"
       }
 
       NotifyApproval = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "approved"
+          "action"          = "send-notification"
+          "type"            = "approved"
           "requirementId.$" = "$.requirementId"
         }
         Next = "TriggerImplementation"
       }
 
       TriggerImplementation = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "trigger-implementation"
+          "action"          = "trigger-implementation"
           "requirementId.$" = "$.requirementId"
         }
         End = true
       }
 
       HandleRejection = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "update-requirement-status"
+          "action"          = "update-requirement-status"
           "requirementId.$" = "$.requirementId"
-          "status" = "REJECTED"
-          "rejectedAt.$" = "$$.State.EnteredTime"
+          "status"          = "REJECTED"
+          "rejectedAt.$"    = "$$.State.EnteredTime"
         }
         Next = "NotifyRejection"
       }
 
       NotifyRejection = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "rejected"
+          "action"          = "send-notification"
+          "type"            = "rejected"
           "requirementId.$" = "$.requirementId"
         }
         End = true
       }
 
       HandleTimeout = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "update-requirement-status"
+          "action"          = "update-requirement-status"
           "requirementId.$" = "$.requirementId"
-          "status" = "REVIEW_TIMEOUT"
+          "status"          = "REVIEW_TIMEOUT"
         }
         Next = "NotifyTimeout"
       }
 
       NotifyTimeout = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "review-timeout"
+          "action"          = "send-notification"
+          "type"            = "review-timeout"
           "requirementId.$" = "$.requirementId"
         }
         End = true
@@ -291,7 +291,7 @@ resource "aws_sfn_state_machine" "requirement_approval" {
     content {
       log_destination        = "${aws_cloudwatch_log_group.step_functions[0].arn}:*"
       include_execution_data = true
-      level                 = "ERROR"
+      level                  = "ERROR"
     }
   }
 
@@ -312,7 +312,7 @@ resource "aws_sfn_state_machine" "document_processing" {
     StartAt = "ProcessDocument"
     States = {
       ProcessDocument = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.document_processor_function_arn
         Parameters = {
           "Records.$" = "$.Records"
@@ -320,16 +320,16 @@ resource "aws_sfn_state_machine" "document_processing" {
         Next = "CheckProcessingResult"
         Retry = [
           {
-            ErrorEquals = ["Lambda.ServiceException", "Lambda.AWSLambdaException"]
+            ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException"]
             IntervalSeconds = 2
-            MaxAttempts = 3
-            BackoffRate = 2.0
+            MaxAttempts     = 3
+            BackoffRate     = 2.0
           }
         ]
         Catch = [
           {
             ErrorEquals = ["States.ALL"]
-            Next = "ProcessingFailed"
+            Next        = "ProcessingFailed"
           }
         ]
       }
@@ -338,54 +338,54 @@ resource "aws_sfn_state_machine" "document_processing" {
         Type = "Choice"
         Choices = [
           {
-            Variable = "$.statusCode"
+            Variable      = "$.statusCode"
             NumericEquals = 200
-            Next = "ExtractRequirements"
+            Next          = "ExtractRequirements"
           }
         ]
         Default = "ProcessingFailed"
       }
 
       ExtractRequirements = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "extract-requirements-from-text"
+          "action"          = "extract-requirements-from-text"
           "extractedText.$" = "$.extractedText"
-          "documentId.$" = "$.documentId"
+          "documentId.$"    = "$.documentId"
         }
         Next = "CreateRequirements"
       }
 
       CreateRequirements = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "create-requirements-from-extraction"
-          "requirements.$" = "$.requirements"
+          "action"           = "create-requirements-from-extraction"
+          "requirements.$"   = "$.requirements"
           "sourceDocument.$" = "$.documentId"
         }
         Next = "NotifyProcessingComplete"
       }
 
       NotifyProcessingComplete = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "document-processed"
-          "documentId.$" = "$.documentId"
+          "action"             = "send-notification"
+          "type"               = "document-processed"
+          "documentId.$"       = "$.documentId"
           "requirementCount.$" = "$.createdRequirements.length"
         }
         End = true
       }
 
       ProcessingFailed = {
-        Type = "Task"
+        Type     = "Task"
         Resource = var.api_handler_function_arn
         Parameters = {
-          "action" = "send-notification"
-          "type" = "document-processing-failed"
+          "action"  = "send-notification"
+          "type"    = "document-processing-failed"
           "error.$" = "$.error"
         }
         End = true
@@ -399,7 +399,7 @@ resource "aws_sfn_state_machine" "document_processing" {
     content {
       log_destination        = "${aws_cloudwatch_log_group.step_functions[0].arn}:*"
       include_execution_data = true
-      level                 = "ERROR"
+      level                  = "ERROR"
     }
   }
 

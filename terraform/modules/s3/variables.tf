@@ -25,8 +25,8 @@ variable "enable_lifecycle_policy" {
 variable "document_retention_days" {
   description = "Number of days to retain documents before deletion"
   type        = number
-  default     = 2555  # ~7 years for compliance
-  
+  default     = 2555 # ~7 years for compliance
+
   validation {
     condition     = var.document_retention_days >= 30
     error_message = "Document retention must be at least 30 days."
@@ -36,13 +36,13 @@ variable "document_retention_days" {
 variable "allowed_origins" {
   description = "Allowed origins for CORS (web app domains)"
   type        = list(string)
-  default     = ["*"]  # Restrict in production
+  default     = ["*"] # Restrict in production
 }
 
 variable "enable_event_notifications" {
   description = "Enable S3 event notifications for document processing"
   type        = bool
-  default     = false  # Enable when Lambda exists
+  default     = false # Enable when Lambda exists
 }
 
 variable "document_processor_lambda_arn" {

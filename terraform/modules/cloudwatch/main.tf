@@ -266,7 +266,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_high_duration" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Average"
-  threshold           = "10000"  # 10 seconds
+  threshold           = "10000" # 10 seconds
   alarm_description   = "This alarm monitors Lambda function duration"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -359,7 +359,7 @@ resource "aws_cloudwatch_metric_alarm" "actions_created_low" {
   evaluation_periods  = "3"
   metric_name         = "ActionsCreatedToday"
   namespace           = "DeliveryCommand/Business"
-  period              = "3600"  # 1 hour
+  period              = "3600" # 1 hour
   statistic           = "Maximum"
   threshold           = var.business_hours_actions_threshold
   alarm_description   = "Actions creation rate is unusually low"
@@ -376,7 +376,7 @@ resource "aws_cloudwatch_metric_alarm" "actions_created_low" {
 resource "aws_cloudwatch_composite_alarm" "system_critical_health" {
   alarm_name        = "${var.project_name}-${var.environment}-system-critical-health"
   alarm_description = "Composite alarm for critical system health issues"
-  
+
   alarm_rule = join(" OR ", [
     "ALARM(${aws_cloudwatch_metric_alarm.api_high_error_rate.alarm_name})",
     "ALARM(${aws_cloudwatch_metric_alarm.lambda_high_error_rate.alarm_name})",
@@ -403,13 +403,13 @@ resource "aws_sns_topic_subscription" "critical_email_alerts" {
 # Business Hours Alert (conditional)
 resource "aws_cloudwatch_metric_alarm" "business_hours_actions_low" {
   count = var.enable_business_hours_monitoring ? 1 : 0
-  
+
   alarm_name          = "${var.project_name}-${var.environment}-business-hours-actions-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "3"
   metric_name         = "ActionsCreatedToday"
   namespace           = "DeliveryCommand/Business"
-  period              = "3600"  # 1 hour
+  period              = "3600" # 1 hour
   statistic           = "Sum"
   threshold           = var.business_hours_actions_threshold
   alarm_description   = "Actions creation rate is unusually low during business hours"
@@ -430,7 +430,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_cost_trend" {
   datapoints_to_alarm = "2"
   metric_name         = "Duration"
   namespace           = "AWS/Lambda"
-  period              = "900"  # 15 minutes
+  period              = "900" # 15 minutes
   statistic           = "Average"
   threshold           = var.lambda_duration_cost_threshold
   alarm_description   = "Lambda execution time trending upward - cost impact"

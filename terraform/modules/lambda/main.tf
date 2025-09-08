@@ -84,14 +84,14 @@ resource "aws_iam_role_policy" "lambda_custom" {
 
 # Document Processor Lambda Function
 resource "aws_lambda_function" "document_processor" {
-  filename      = var.document_processor_zip_path  # This might now be local.document_processor_zip_path
+  filename      = var.document_processor_zip_path # This might now be local.document_processor_zip_path
   function_name = "${var.project_name}-${var.environment}-document-processor"
-  role         = aws_iam_role.lambda_role.arn
-  handler      = "lambda_function.lambda_handler"
-  runtime      = "python3.9"
-  timeout      = 60
-  
-  depends_on    = [null_resource.create_document_processor_zip]
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.9"
+  timeout       = 60
+
+  depends_on = [null_resource.create_document_processor_zip]
 
   environment {
     variables = {
@@ -118,14 +118,14 @@ resource "aws_lambda_function" "document_processor" {
 
 # API Handler Lambda Function
 resource "aws_lambda_function" "api_handler" {
-  filename      = var.api_handler_zip_path  # This might now be local.api_handler_zip_path
+  filename      = var.api_handler_zip_path # This might now be local.api_handler_zip_path
   function_name = "${var.project_name}-${var.environment}-api-handler"
-  role         = aws_iam_role.lambda_role.arn
-  handler      = "lambda_function.lambda_handler"
-  runtime      = "python3.9"
-  timeout      = 30
-  
-  depends_on    = [null_resource.create_api_handler_zip]
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.9"
+  timeout       = 30
+
+  depends_on = [null_resource.create_api_handler_zip]
 
   environment {
     variables = {
@@ -192,9 +192,9 @@ resource "aws_lambda_function" "jwt_authorizer" {
 
   environment {
     variables = {
-      COGNITO_USER_POOL_ID = var.cognito_user_pool_id != "" ? var.cognito_user_pool_id : "placeholder"
+      COGNITO_USER_POOL_ID  = var.cognito_user_pool_id != "" ? var.cognito_user_pool_id : "placeholder"
       COGNITO_APP_CLIENT_ID = var.cognito_app_client_id != "" ? var.cognito_app_client_id : "placeholder"
-      API_ARN_PREFIX = var.api_gateway_execution_arn != "" ? var.api_gateway_execution_arn : "placeholder"
+      API_ARN_PREFIX        = var.api_gateway_execution_arn != "" ? var.api_gateway_execution_arn : "placeholder"
     }
   }
 
@@ -203,7 +203,7 @@ resource "aws_lambda_function" "jwt_authorizer" {
     Environment = var.environment
     Purpose     = "authentication"
   })
-  
+
   depends_on = [null_resource.create_jwt_authorizer_zip]
 }
 
@@ -216,7 +216,7 @@ resource "null_resource" "create_jwt_authorizer_zip" {
 
   # Create a valid Lambda zip file
   provisioner "local-exec" {
-    command = <<-EOT
+    command     = <<-EOT
       mkdir -p $(dirname ${var.jwt_authorizer_zip_path})
       cd $(dirname ${var.jwt_authorizer_zip_path})
       echo 'def lambda_handler(event, context):\n    return {"principalId": "user", "policyDocument": {"Version": "2012-10-17", "Statement": [{"Action": "execute-api:Invoke", "Effect": "Allow", "Resource": event["methodArn"]}]}}' > lambda_function.py

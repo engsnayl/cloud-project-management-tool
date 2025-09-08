@@ -32,7 +32,7 @@ variable "include_global_service_events" {
 variable "enable_data_events" {
   description = "Enable data events for S3 and Lambda (increases costs)"
   type        = bool
-  default     = false  # Disable for dev to save costs
+  default     = false # Disable for dev to save costs
 }
 
 variable "exclude_management_event_sources" {
@@ -45,8 +45,8 @@ variable "exclude_management_event_sources" {
 variable "cloudtrail_retention_days" {
   description = "Number of days to retain CloudTrail logs in S3"
   type        = number
-  default     = 2555  # ~7 years for compliance
-  
+  default     = 2555 # ~7 years for compliance
+
   validation {
     condition     = var.cloudtrail_retention_days >= 90
     error_message = "CloudTrail retention must be at least 90 days for compliance."
@@ -57,10 +57,10 @@ variable "cloudtrail_retention_days" {
 variable "cloudwatch_log_retention_days" {
   description = "Number of days to retain CloudTrail logs in CloudWatch"
   type        = number
-  default     = 7  # 1 week for cost optimization
-  
+  default     = 7 # 1 week for cost optimization
+
   validation {
-    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.cloudwatch_log_retention_days)
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.cloudwatch_log_retention_days)
     error_message = "CloudWatch log retention days must be a valid CloudWatch retention period."
   }
 }
@@ -89,7 +89,7 @@ variable "unauthorized_api_calls_threshold" {
   description = "Threshold for unauthorized API calls alarm"
   type        = number
   default     = 5
-  
+
   validation {
     condition     = var.unauthorized_api_calls_threshold >= 1
     error_message = "Unauthorized API calls threshold must be at least 1."
@@ -100,14 +100,14 @@ variable "unauthorized_api_calls_threshold" {
 variable "enable_insight_selectors" {
   description = "Enable CloudTrail Insights for anomaly detection (costs extra)"
   type        = bool
-  default     = false  # Disable for dev environment
+  default     = false # Disable for dev environment
 }
 
 variable "insight_selector_types" {
   description = "Types of insights to enable"
   type        = list(string)
   default     = ["ApiCallRateInsight"]
-  
+
   validation {
     condition = alltrue([
       for type in var.insight_selector_types : contains(["ApiCallRateInsight"], type)

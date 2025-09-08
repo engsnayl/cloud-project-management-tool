@@ -38,12 +38,12 @@ output "authenticated_role_arn" {
 # OAuth URLs for frontend integration
 output "oauth_login_url" {
   description = "OAuth login URL"
-  value = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.main.id}&response_type=code&scope=email+openid+profile&redirect_uri=${var.frontend_url != "" ? var.frontend_url : "http://localhost:3000"}/callback"
+  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com/login?client_id=${aws_cognito_user_pool_client.main.id}&response_type=code&scope=email+openid+profile&redirect_uri=${var.frontend_url != "" ? var.frontend_url : "http://localhost:3000"}/callback"
 }
 
 output "oauth_logout_url" {
   description = "OAuth logout URL"
-  value = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com/logout?client_id=${aws_cognito_user_pool_client.main.id}&logout_uri=${var.frontend_url != "" ? var.frontend_url : "http://localhost:3000"}/"
+  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com/logout?client_id=${aws_cognito_user_pool_client.main.id}&logout_uri=${var.frontend_url != "" ? var.frontend_url : "http://localhost:3000"}/"
 }
 
 # Data source for current AWS region

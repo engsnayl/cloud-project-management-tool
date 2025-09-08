@@ -3,7 +3,7 @@
 # Documents bucket for requirement uploads
 resource "aws_s3_bucket" "documents" {
   bucket = "${var.project_name}-${var.environment}-documents-${random_string.suffix.result}"
-  
+
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-documents"
     Environment = var.environment
@@ -51,7 +51,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "documents" {
     status = var.enable_lifecycle_policy ? "Enabled" : "Disabled"
 
     filter {
-      prefix = ""  # Apply to all objects
+      prefix = "" # Apply to all objects
     }
 
     transition {

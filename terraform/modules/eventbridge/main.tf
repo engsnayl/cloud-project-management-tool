@@ -142,10 +142,10 @@ resource "aws_cloudwatch_event_target" "document_uploaded_target" {
 
   input_transformer {
     input_paths = {
-      bucketName   = "$.detail.bucketName"
-      objectKey    = "$.detail.objectKey"
-      documentId   = "$.detail.documentId"
-      fileType     = "$.detail.fileType"
+      bucketName = "$.detail.bucketName"
+      objectKey  = "$.detail.objectKey"
+      documentId = "$.detail.documentId"
+      fileType   = "$.detail.fileType"
     }
     input_template = jsonencode({
       Records = [
@@ -248,21 +248,21 @@ resource "aws_cloudwatch_event_target" "workflow_completed_target" {
 
   input_transformer {
     input_paths = {
-      workflowType    = "$.detail.workflowType"
-      status          = "$.detail.status"
-      executionArn    = "$.detail.executionArn"
-      duration        = "$.detail.duration"
-      requirementId   = "$.detail.requirementId"
+      workflowType  = "$.detail.workflowType"
+      status        = "$.detail.status"
+      executionArn  = "$.detail.executionArn"
+      duration      = "$.detail.duration"
+      requirementId = "$.detail.requirementId"
     }
     input_template = jsonencode({
-      action          = "update-workflow-analytics"
-      workflowType    = "<workflowType>"
-      status          = "<status>"
-      executionArn    = "<executionArn>"
-      duration        = "<duration>"
-      requirementId   = "<requirementId>"
-      timestamp       = "$$.Execution.StartTime"
-      source          = "eventbridge"
+      action        = "update-workflow-analytics"
+      workflowType  = "<workflowType>"
+      status        = "<status>"
+      executionArn  = "<executionArn>"
+      duration      = "<duration>"
+      requirementId = "<requirementId>"
+      timestamp     = "$$.Execution.StartTime"
+      source        = "eventbridge"
     })
   }
 }
@@ -270,8 +270,8 @@ resource "aws_cloudwatch_event_target" "workflow_completed_target" {
 # Dead Letter Queue for Failed Events
 resource "aws_sqs_queue" "event_dlq" {
   name = "${var.project_name}-${var.environment}-event-dlq"
-  
-  message_retention_seconds = 1209600  # 14 days
+
+  message_retention_seconds  = 1209600 # 14 days
   visibility_timeout_seconds = 60
 
   tags = merge(var.tags, {
@@ -283,11 +283,11 @@ resource "aws_sqs_queue" "event_dlq" {
 
 # EventBridge Archive for Event Replay (Optional)
 resource "aws_cloudwatch_event_archive" "deliverycommand_archive" {
-  count              = var.enable_event_archive ? 1 : 0
-  name               = "${var.project_name}-${var.environment}-event-archive"
-  event_source_arn   = aws_cloudwatch_event_bus.deliverycommand.arn
-  retention_days     = var.event_archive_retention_days
-  description        = "Archive for DeliveryCommand events for replay capability"
+  count            = var.enable_event_archive ? 1 : 0
+  name             = "${var.project_name}-${var.environment}-event-archive"
+  event_source_arn = aws_cloudwatch_event_bus.deliverycommand.arn
+  retention_days   = var.event_archive_retention_days
+  description      = "Archive for DeliveryCommand events for replay capability"
 
   event_pattern = jsonencode({
     source = ["deliverycommand.requirements", "deliverycommand.documents", "deliverycommand.workflows"]

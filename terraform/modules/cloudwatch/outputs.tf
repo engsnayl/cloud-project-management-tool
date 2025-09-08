@@ -38,8 +38,8 @@ output "lambda_duration_alarm_arn" {
 output "log_group_names" {
   description = "Names of created CloudWatch log groups"
   value = {
-    api_handler         = aws_cloudwatch_log_group.api_handler_logs.name
-    document_processor  = aws_cloudwatch_log_group.document_processor_logs.name
+    api_handler        = aws_cloudwatch_log_group.api_handler_logs.name
+    document_processor = aws_cloudwatch_log_group.document_processor_logs.name
   }
 }
 
@@ -54,8 +54,8 @@ output "log_insights_queries" {
 output "dashboard_names" {
   description = "Names of created CloudWatch dashboards"
   value = {
-    system_health      = aws_cloudwatch_dashboard.system_health.dashboard_name
-    business_metrics   = aws_cloudwatch_dashboard.business_metrics.dashboard_name
-    cost_monitoring    = aws_cloudwatch_dashboard.cost_monitoring.dashboard_name
+    system_health    = aws_cloudwatch_dashboard.system_health.dashboard_name
+    business_metrics = aws_cloudwatch_dashboard.business_metrics.dashboard_name
+    cost_monitoring  = aws_cloudwatch_dashboard.cost_monitoring.dashboard_name
   }
 }

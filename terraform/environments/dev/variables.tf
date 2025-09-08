@@ -143,29 +143,29 @@ variable "document_processing_workflow_arn" {
 variable "enable_cloudtrail_data_events" {
   description = "Enable CloudTrail data events for S3 and Lambda (increases costs)"
   type        = bool
-  default     = false  # Keep disabled to save costs
+  default     = false # Keep disabled to save costs
 }
 
 variable "cloudtrail_retention_days" {
   description = "Number of days to retain CloudTrail logs in S3"
   type        = number
-  default     = 90  # 3 months for demo (ultra-minimal)
+  default     = 90 # 3 months for demo (ultra-minimal)
 }
 
 variable "cloudtrail_cloudwatch_retention_days" {
   description = "Number of days to retain CloudTrail logs in CloudWatch"
   type        = number
-  default     = 7  # 1 week for ultra-minimal costs
+  default     = 7 # 1 week for ultra-minimal costs
 }
 
 variable "security_alert_email" {
   description = "Email address for security alerts"
   type        = string
-  default     = ""  # Set this to receive security alerts
+  default     = "" # Set this to receive security alerts
 }
 
 variable "unauthorized_api_calls_threshold" {
   description = "Threshold for unauthorized API calls alarm"
   type        = number
-  default     = 20  # Higher threshold for dev to reduce alert noise
+  default     = 20 # Higher threshold for dev to reduce alert noise
 }

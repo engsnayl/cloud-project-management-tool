@@ -47,7 +47,7 @@ variable "log_retention_days" {
   default     = 14
 
   validation {
-    condition = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.log_retention_days)
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.log_retention_days)
     error_message = "Log retention days must be a valid CloudWatch retention period."
   }
 }
@@ -78,7 +78,7 @@ variable "high_error_threshold" {
 variable "high_latency_threshold" {
   description = "Threshold for high latency alarm (in milliseconds)"
   type        = number
-  default     = 10000  # 10 seconds
+  default     = 10000 # 10 seconds
 }
 
 variable "tags" {
@@ -115,12 +115,12 @@ variable "business_hours_actions_threshold" {
 variable "lambda_duration_cost_threshold" {
   description = "Lambda duration threshold for cost monitoring (milliseconds)"
   type        = number
-  default     = 5000  # 5 seconds
+  default     = 5000 # 5 seconds
 }
 
 variable "api_latency_threshold" {
   description = "API Gateway latency threshold for performance monitoring (milliseconds)"
   type        = number
-  default     = 2000  # 2 seconds
+  default     = 2000 # 2 seconds
 }
 
