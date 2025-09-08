@@ -150,3 +150,35 @@ module "cloudwatch" {
 
   depends_on = [module.api_gateway, module.lambda, module.dynamodb, module.s3]
 }
+
+# CloudTrail Module - Ultra-Minimal Security Audit Logging
+module "cloudtrail" {
+  source = "../../modules/cloudtrail"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  # CloudTrail Configuration - Ultra-Minimal for Cost Savings
+  is_multi_region_trail         = false  # Single region for cost savings
+  include_global_service_events = true   # Monitor IAM, STS events (still important)
+  enable_data_events           = false   # Disabled to save costs
+
+  # No data events to minimize costs
+  s3_bucket_arns       = []
+  lambda_function_arns = []
+
+  # Ultra-Minimal Retention Configuration
+  cloudtrail_retention_days        = var.cloudtrail_retention_days        # 90 days
+  cloudwatch_log_retention_days    = var.cloudtrail_cloudwatch_retention_days  # 7 days
+
+  # Security Alerting (reduced sensitivity)
+  security_alert_email                = var.security_alert_email
+  unauthorized_api_calls_threshold    = var.unauthorized_api_calls_threshold
+
+  # Cost Optimization
+  enable_insight_selectors = false  # Disable insights
+
+  tags = local.common_tags
+
+  depends_on = [module.s3, module.lambda]
+}

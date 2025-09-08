@@ -138,3 +138,36 @@ variable "document_processing_workflow_arn" {
   type        = string
   default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-staging-document-processing"
 }
+
+# Add these variables to terraform/environments/staging/variables.tf
+
+# CloudTrail Configuration - Ultra-Minimal for Portfolio Demo
+variable "enable_cloudtrail_data_events" {
+  description = "Enable CloudTrail data events for S3 and Lambda (increases costs)"
+  type        = bool
+  default     = false  # Keep disabled to control costs
+}
+
+variable "cloudtrail_retention_days" {
+  description = "Number of days to retain CloudTrail logs in S3"
+  type        = number
+  default     = 90  # 3 months for demo (ultra-minimal)
+}
+
+variable "cloudtrail_cloudwatch_retention_days" {
+  description = "Number of days to retain CloudTrail logs in CloudWatch"
+  type        = number
+  default     = 7  # 1 week for ultra-minimal costs
+}
+
+variable "security_alert_email" {
+  description = "Email address for security alerts"
+  type        = string
+  default     = ""  # Set staging-specific security email if desired
+}
+
+variable "unauthorized_api_calls_threshold" {
+  description = "Threshold for unauthorized API calls alarm"
+  type        = number
+  default     = 15  # Moderate threshold for staging
+}

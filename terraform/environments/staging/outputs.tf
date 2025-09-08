@@ -203,3 +203,37 @@ Log Groups Created:
 
 EOF
 }
+
+# Cloudtrail outputs
+output "cloudtrail_arn" {
+  description = "ARN of the CloudTrail"
+  value       = module.cloudtrail.cloudtrail_arn
+}
+
+output "cloudtrail_s3_bucket" {
+  description = "S3 bucket storing CloudTrail logs"
+  value       = module.cloudtrail.cloudtrail_s3_bucket_name
+}
+
+output "cloudtrail_log_group" {
+  description = "CloudWatch log group for CloudTrail"
+  value       = module.cloudtrail.cloudtrail_log_group_name
+}
+
+output "cloudtrail_alerts_topic" {
+  description = "SNS topic for CloudTrail security alerts"
+  value       = module.cloudtrail.cloudtrail_alerts_topic_arn
+}
+
+output "cloudtrail_configuration" {
+  description = "CloudTrail configuration summary"
+  value       = module.cloudtrail.cloudtrail_configuration
+}
+
+output "security_monitoring" {
+  description = "Security monitoring resources"
+  value = {
+    metric_filters = module.cloudtrail.security_metric_filters
+    alarms         = module.cloudtrail.security_alarms
+  }
+}
