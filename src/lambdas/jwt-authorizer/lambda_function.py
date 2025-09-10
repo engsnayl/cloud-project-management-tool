@@ -1,3 +1,5 @@
+#/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer
+
 import json
 
 def lambda_handler(event, context):

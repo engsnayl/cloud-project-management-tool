@@ -45,8 +45,6 @@ output "s3_lambda_permission" {
   value       = aws_lambda_permission.s3_invoke
 }
 
-# terraform/modules/lambda/outputs.tf - Add these outputs
-
 output "jwt_authorizer_function_name" {
   description = "Name of the JWT authorizer Lambda function"
   value       = aws_lambda_function.jwt_authorizer.function_name

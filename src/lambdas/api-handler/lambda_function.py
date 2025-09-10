@@ -27,6 +27,12 @@ def lambda_handler(event, context):
         query_params = event.get('queryStringParameters') or {}
         body = event.get('body')
         
+        logger.info(f"Processing {http_method} {path}")
+        
+        # Handle CORS preflight requests
+        if http_method == 'OPTIONS':
+            return cors_response()
+        
         # Parse JSON body if present
         json_body = None
         if body:
@@ -34,8 +40,6 @@ def lambda_handler(event, context):
                 json_body = json.loads(body)
             except json.JSONDecodeError:
                 return error_response(400, "Invalid JSON in request body")
-        
-        logger.info(f"Processing {http_method} {path}")
         
         # Route the request
         if path == '/api/v1/health':
@@ -56,6 +60,19 @@ def lambda_handler(event, context):
     except Exception as e:
         logger.error(f"Unhandled error: {str(e)}")
         return error_response(500, "Internal server error")
+
+def cors_response():
+    """Handle CORS preflight requests"""
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+            'Access-Control-Max-Age': '86400'
+        },
+        'body': ''
+    }
 
 def handle_health():
     """Health check endpoint"""
