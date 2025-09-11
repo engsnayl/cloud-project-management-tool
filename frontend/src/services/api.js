@@ -1,123 +1,88 @@
 // src/services/api.js
 import axios from 'axios';
 
-// API Configuration - Using your actual API Gateway URL
-const API_BASE_URL = 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/api/v1';
+// API Configuration - Fixed for Vite environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/api/v1';
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
-// Request interceptor for logging
-api.interceptors.request.use(
-  (config) => {
-    console.log(`Making ${config.method.toUpperCase()} request to: ${config.baseURL}${config.url}`);
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Add request interceptor for debugging
+api.interceptors.request.use((config) => {
+  console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+  return config;
+});
 
-// Response interceptor for error handling
+// Add response interceptor for debugging
 api.interceptors.response.use(
   (response) => {
-    console.log(`Response received:`, response.data);
+    console.log(`API Response: ${response.status} ${response.config.url}`);
     return response;
   },
   (error) => {
-    console.error('API Error:', error.response?.data || error.message);
+    console.error(`API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
 
-// API Methods
 const apiService = {
-  // Health Check
-  checkHealth: () => api.get('/health'),
-
-  // Actions API (Replaced Requirements)
+  // Actions API
   actions: {
-    getAll: () => api.get('/actions'),
-    create: (actionData) => api.post('/actions', actionData),
-    getById: (id) => api.get(`/actions/${id}`),
-    update: (id, data) => api.put(`/actions/${id}`, data),
-    delete: (id) => api.delete(`/actions/${id}`),
-    updateStatus: (id, status) => api.put(`/actions/${id}/status`, { status }),
-    getByProject: (projectId) => api.get(`/actions?projectId=${projectId}`),
-    getMyActions: (owner) => api.get(`/actions?owner=${owner}`),
-    triggerReminder: (id) => api.post(`/actions/${id}/remind`),
+    getAll: (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      const url = queryString ? `/actions?${queryString}` : '/actions';
+      return api.get(url).then(response => response.data);
+    },
+    getById: (actionId) => api.get(`/actions/${actionId}`).then(response => response.data),
+    create: (actionData) => api.post('/actions', actionData).then(response => response.data),
+    update: (actionId, actionData) => api.put(`/actions/${actionId}`, actionData).then(response => response.data),
+    delete: (actionId) => api.delete(`/actions/${actionId}`).then(response => response.data),
   },
 
   // Projects API
   projects: {
-    getAll: () => api.get('/projects'),
-    create: (projectData) => api.post('/projects', projectData),
-    getById: (id) => api.get(`/projects/${id}`),
-    update: (id, data) => api.put(`/projects/${id}`, data),
-    delete: (id) => api.delete(`/projects/${id}`),
-    getActions: (projectId) => api.get(`/projects/${projectId}/actions`),
+    getAll: (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      const url = queryString ? `/projects?${queryString}` : '/projects';
+      return api.get(url).then(response => response.data);
+    },
+    getById: (projectId) => api.get(`/projects/${projectId}`).then(response => response.data),
+    create: (projectData) => api.post('/projects', projectData).then(response => response.data),
+    update: (projectId, projectData) => api.put(`/projects/${projectId}`, projectData).then(response => response.data),
+    delete: (projectId) => api.delete(`/projects/${projectId}`).then(response => response.data),
   },
 
   // Documents API
   documents: {
-    upload: (file, metadata) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('metadata', JSON.stringify(metadata));
-      
-      return api.post('/documents/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    },
-    getProcessingStatus: (documentId) => api.get(`/documents/${documentId}/status`),
-    getExtractedText: (documentId) => api.get(`/documents/${documentId}/extracted-text`),
+    upload: (formData) => api.post('/documents', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }).then(response => response.data),
+    getProcessingStatus: (documentId) => api.get(`/documents/${documentId}/status`).then(response => response.data),
+    getExtractedText: (documentId) => api.get(`/documents/${documentId}/extracted-text`).then(response => response.data),
+    convertToActions: (documentId) => api.post(`/documents/${documentId}/convert-to-actions`).then(response => response.data),
   },
 
-  // Workflows API (Updated for Action Tracking)
+  // Workflows API
   workflows: {
-    getStatus: (executionArn) => api.get(`/workflows/status?executionArn=${encodeURIComponent(executionArn)}`),
-    getHistory: (actionId) => api.get(`/workflows/history/${actionId}`),
-    getAll: () => api.get('/workflows'),
+    getStatus: (executionArn) => api.get(`/workflows/status?executionArn=${encodeURIComponent(executionArn)}`).then(response => response.data),
+    getHistory: (actionId) => api.get(`/workflows/history/${actionId}`).then(response => response.data),
+    getAll: () => api.get('/workflows').then(response => response.data),
   },
 
-  // Analytics API (Updated for Actions)
+  // Analytics API
   analytics: {
-    getDashboard: () => api.get('/analytics/dashboard'),
-    getProjectMetrics: (projectId) => api.get(`/analytics/projects/${projectId}`),
-    getActionMetrics: () => api.get('/analytics/actions'),
+    getDashboard: () => api.get('/analytics/dashboard').then(response => response.data),
+    getProjectMetrics: (projectId) => api.get(`/analytics/projects/${projectId}`).then(response => response.data),
+    getActionMetrics: () => api.get('/analytics/actions').then(response => response.data),
   },
 };
 
-// Utility functions
-export const handleApiError = (error) => {
-  if (error.response) {
-    // Server responded with error status
-    return {
-      message: error.response.data?.message || 'Server error occurred',
-      status: error.response.status,
-      data: error.response.data,
-    };
-  } else if (error.request) {
-    // Request made but no response
-    return {
-      message: 'No response from server. Please check your connection.',
-      status: 0,
-    };
-  } else {
-    // Something else happened
-    return {
-      message: error.message || 'An unexpected error occurred',
-      status: -1,
-    };
-  }
-};
-
-// Export both named and default
-export { apiService };
 export default apiService;

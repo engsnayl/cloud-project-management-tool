@@ -2,167 +2,121 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { useQuery } from 'react-query';
-import apiService from './services/api';
-import Header from "./components/Layout/Header";
-import Navigation from "./components/Layout/Navigation";
-import Actions from "./components/Actions";
-import Projects from "./components/Projects/ProjectOverview";
-import Documents from "./components/Documents/DocumentUpload";
-import Workflows from "./components/Workflows/WorkflowDashboard";
-import './App.css';
+import Header from './components/Layout/Header';
+import Navigation from './components/Layout/Navigation';
+import Actions from './components/Actions';
+import ProjectOverview from './components/Projects/ProjectOverview';
+import DocumentUpload from './components/Documents/DocumentUpload';
+import WorkflowDashboard from './components/Workflows/WorkflowDashboard';
 
-// Create a React Query client
+// Create a query client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
       refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 30000,
     },
   },
 });
 
-// Dashboard Component with Real Data
+// Dashboard Component
 const Dashboard = () => {
-  // Fetch actions data
-  const { data: actionsResponse, isLoading: actionsLoading } = useQuery(
-    'dashboard-actions',
-    () => apiService.actions.getAll(),
-    { retry: 1, refetchOnWindowFocus: false }
-  );
-
-  // Fetch projects data
-  const { data: projectsResponse, isLoading: projectsLoading } = useQuery(
-    'dashboard-projects',
-    () => apiService.projects.getAll(),
-    { retry: 1, refetchOnWindowFocus: false }
-  );
-
-  const actions = actionsResponse?.data?.actions || [];
-  const projects = projectsResponse?.data?.projects || [];
-
-  // Calculate metrics
-  const totalActions = actions.length;
-  const pendingActions = actions.filter(a => a.status === 'pending').length;
-  const completedActions = actions.filter(a => a.status === 'completed').length;
-  const overdueActions = actions.filter(a => {
-    if (!a.deadline) return false;
-    return new Date(a.deadline) < new Date() && a.status !== 'completed';
-  }).length;
-
   return (
-    <div className="p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 lg:mb-8">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Action Tracking Dashboard</h1>
-          <p className="text-gray-600 text-sm lg:text-base">Monitor and manage project actions and deliverables</p>
-        </div>
+    <div className="space-y-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Action Tracking Dashboard</h1>
+        <p className="text-gray-600 mt-2">Monitor and manage your actions across all projects</p>
+      </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                <span className="text-xl lg:text-2xl">📋</span>
-              </div>
-              <div className="ml-3 lg:ml-4 min-w-0">
-                <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">Total Actions</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">
-                  {actionsLoading ? '...' : totalActions}
-                </p>
-              </div>
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
             </div>
-          </div>
-
-          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
-                <span className="text-xl lg:text-2xl">⏳</span>
-              </div>
-              <div className="ml-3 lg:ml-4 min-w-0">
-                <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">Pending</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">
-                  {actionsLoading ? '...' : pendingActions}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
-                <span className="text-xl lg:text-2xl">✅</span>
-              </div>
-              <div className="ml-3 lg:ml-4 min-w-0">
-                <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">Completed</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">
-                  {actionsLoading ? '...' : completedActions}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
-                <span className="text-xl lg:text-2xl">🚨</span>
-              </div>
-              <div className="ml-3 lg:ml-4 min-w-0">
-                <p className="text-xs lg:text-sm font-medium text-gray-600 truncate">Overdue</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">
-                  {actionsLoading ? '...' : overdueActions}
-                </p>
-              </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Total Actions</p>
+              <p className="text-2xl font-semibold text-gray-900">24</p>
             </div>
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-white p-4 lg:p-6 rounded-lg shadow-sm border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-          
-          {actionsLoading || projectsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Loading recent activity...</p>
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
-          ) : actions.length > 0 || projects.length > 0 ? (
-            <div className="space-y-3 lg:space-y-4">
-              {/* Recent Projects */}
-              {projects.slice(0, 2).map(project => (
-                <div key={project.projectId} className="flex items-center space-x-3 lg:space-x-4 p-3 hover:bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-purple-600 font-semibold text-sm">P</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">Project created: {project.name}</p>
-                    <p className="text-xs text-gray-500">{new Date(project.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Recent Actions */}
-              {actions.slice(0, 3).map(action => (
-                <div key={action.actionId} className="flex items-center space-x-3 lg:space-x-4 p-3 hover:bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 font-semibold text-sm">A</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">Action: {action.title}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      Assigned to {action.owner} • Status: {action.status}
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-400 flex-shrink-0 hidden sm:block">
-                    {new Date(action.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-              ))}
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Pending</p>
+              <p className="text-2xl font-semibold text-gray-900">8</p>
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No recent activity. Start by creating your first action!</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-green-100 text-green-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
             </div>
-          )}
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Completed</p>
+              <p className="text-2xl font-semibold text-gray-900">16</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-red-100 text-red-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Overdue</p>
+              <p className="text-2xl font-semibold text-gray-900">3</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 w-2 h-2 bg-green-400 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900">Action "Review contract terms" completed</p>
+                <p className="text-xs text-gray-500">2 hours ago</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 w-2 h-2 bg-blue-400 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900">New action "Schedule stakeholder meeting" created</p>
+                <p className="text-xs text-gray-500">4 hours ago</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 w-2 h-2 bg-yellow-400 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900">Action "Update requirements document" is overdue</p>
+                <p className="text-xs text-gray-500">1 day ago</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -177,14 +131,14 @@ function App() {
           <Header />
           <div className="flex">
             <Navigation />
-            <main className="flex-1 ml-0 lg:ml-64 md:ml-56 transition-all duration-300 overflow-auto">
+            <main className="flex-1 p-6 lg:ml-64">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/actions" element={<Actions />} />
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/documents" element={<Documents />} />
-                <Route path="/workflows" element={<Workflows />} />
+                <Route path="/projects" element={<ProjectOverview />} />
+                <Route path="/documents" element={<DocumentUpload />} />
+                <Route path="/workflows" element={<WorkflowDashboard />} />
               </Routes>
             </main>
           </div>

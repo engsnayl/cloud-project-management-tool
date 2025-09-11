@@ -11,39 +11,94 @@ import {
   BarChart3, 
   Settings,
   Plus,
-  FolderOpen
+  FolderOpen,
+  AlertCircle
 } from 'lucide-react';
 
 const Navigation = () => {
   const location = useLocation();
 
-  // Fetch data for dynamic counts
-  const { data: actionsResponse } = useQuery(
+  // Fetch data for dynamic counts with proper error handling
+  const { data: actionsResponse, isLoading: actionsLoading, error: actionsError } = useQuery(
     'nav-actions',
     () => apiService.actions.getAll(),
-    { retry: 1, refetchOnWindowFocus: false }
+    { 
+      retry: 2, 
+      refetchOnWindowFocus: false,
+      staleTime: 30000 // Cache for 30 seconds
+    }
   );
 
-  const { data: projectsResponse } = useQuery(
+  const { data: projectsResponse, isLoading: projectsLoading, error: projectsError } = useQuery(
     'nav-projects',
     () => apiService.projects.getAll(),
-    { retry: 1, refetchOnWindowFocus: false }
+    { 
+      retry: 2, 
+      refetchOnWindowFocus: false,
+      staleTime: 30000
+    }
   );
 
-  const actions = actionsResponse?.data?.actions || [];
-  const projects = projectsResponse?.data?.projects || [];
+  const { data: analytics, isLoading: analyticsLoading } = useQuery(
+    'nav-analytics',
+    () => apiService.analytics.getDashboard(),
+    { 
+      retry: 1, 
+      refetchOnWindowFocus: false,
+      staleTime: 60000 // Cache analytics for 1 minute
+    }
+  );
+
+  // Extract counts with fallbacks
+  const actions = actionsResponse?.actions || [];
+  const projects = projectsResponse?.projects || [];
+  const pendingActions = analytics?.pendingActions || 0;
+
+  console.log('Navigation - Actions:', actions.length, 'Projects:', projects.length, 'Pending:', pendingActions);
 
   const navItems = [
-    { path: '/', icon: Home, label: 'Dashboard', count: null },
-    { path: '/actions', icon: CheckSquare, label: 'Actions', count: actions.length.toString() },
-    { path: '/projects', icon: FolderOpen, label: 'Projects', count: projects.length.toString() },
-    { path: '/documents', icon: Upload, label: 'Documents', count: '0' },
-    { path: '/workflows', icon: GitBranch, label: 'Workflows', count: '0' },
+    { 
+      path: '/', 
+      icon: Home, 
+      label: 'Dashboard', 
+      count: null,
+      loading: analyticsLoading
+    },
+    { 
+      path: '/actions', 
+      icon: CheckSquare, 
+      label: 'Actions', 
+      count: actions.length,
+      loading: actionsLoading,
+      error: actionsError
+    },
+    { 
+      path: '/projects', 
+      icon: FolderOpen, 
+      label: 'Projects', 
+      count: projects.length,
+      loading: projectsLoading,
+      error: projectsError
+    },
+    { 
+      path: '/documents', 
+      icon: Upload, 
+      label: 'Documents', 
+      count: 0,
+      loading: false
+    },
+    { 
+      path: '/workflows', 
+      icon: GitBranch, 
+      label: 'Workflows', 
+      count: 0,
+      loading: false
+    },
   ];
 
   const quickActions = [
-    { path: '/actions', icon: Plus, label: 'New Action' },
-    { path: '/projects', icon: FolderOpen, label: 'Create Project' },
+    { path: '/actions?new=true', icon: Plus, label: 'New Action' },
+    { path: '/projects?new=true', icon: FolderOpen, label: 'Create Project' },
     { path: '/documents', icon: Upload, label: 'Upload Document' },
   ];
 
@@ -54,8 +109,36 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
+  const renderCount = (item) => {
+    if (item.loading) {
+      return (
+        <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+      );
+    }
+    
+    if (item.error) {
+      return (
+        <AlertCircle className="w-4 h-4 text-red-500" title="Failed to load" />
+      );
+    }
+    
+    if (item.count !== null && item.count !== undefined) {
+      return (
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          isActivePath(item.path)
+            ? 'bg-blue-100 text-blue-700' 
+            : 'bg-gray-100 text-gray-600'
+        }`}>
+          {item.count}
+        </span>
+      );
+    }
+    
+    return null;
+  };
+
   return (
-    <nav className="fixed left-0 top-16 h-screen w-64 bg-white border-r border-gray-200 overflow-y-auto">
+    <nav className="fixed left-0 top-16 h-screen w-64 bg-white border-r border-gray-200 overflow-y-auto z-30">
       <div className="p-6">
         {/* Main Navigation */}
         <div className="space-y-1">
@@ -73,21 +156,36 @@ const Navigation = () => {
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
-                <span className="flex-1">{item.label}</span>
-                {item.count !== null && (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    isActive 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {item.count}
-                  </span>
-                )}
+                <Icon className={`w-5 h-5 mr-3 flex-shrink-0 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
+                <span className="flex-1 truncate">{item.label}</span>
+                {renderCount(item)}
               </Link>
             );
           })}
         </div>
+
+        {/* Action Summary */}
+        {analytics && !analyticsLoading && (
+          <div className="mt-6 p-3 bg-yellow-50 rounded-lg">
+            <div className="text-xs font-semibold text-yellow-800 mb-2">Quick Stats</div>
+            <div className="text-xs text-yellow-700 space-y-1">
+              <div className="flex justify-between">
+                <span>Pending Actions:</span>
+                <span className="font-medium">{analytics.pendingActions}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Completed:</span>
+                <span className="font-medium">{analytics.completedActions}</span>
+              </div>
+              {analytics.overdueActions > 0 && (
+                <div className="flex justify-between text-red-600">
+                  <span>Overdue:</span>
+                  <span className="font-medium">{analytics.overdueActions}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-8">
@@ -104,8 +202,8 @@ const Navigation = () => {
                   to={action.path}
                   className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
                 >
-                  <Icon className="w-4 h-4 mr-3 text-gray-400" />
-                  {action.label}
+                  <Icon className="w-4 h-4 mr-3 text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{action.label}</span>
                 </Link>
               );
             })}
@@ -115,7 +213,7 @@ const Navigation = () => {
         {/* System Status */}
         <div className="mt-8 p-4 bg-green-50 rounded-lg">
           <div className="flex items-center">
-            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+            <div className="w-2 h-2 bg-green-400 rounded-full mr-2 flex-shrink-0"></div>
             <span className="text-sm font-medium text-green-800">All Systems Operational</span>
           </div>
           <div className="mt-2 text-xs text-green-600">

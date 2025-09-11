@@ -1,277 +1,270 @@
 // src/components/Projects/ProjectOverview.jsx
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 import apiService from '../../services/api';
 import { 
   Plus, 
-  TrendingUp, 
-  Users, 
-  Clock, 
-  CheckCircle,
-  CheckSquare,
-  Upload,
-  GitBranch,
-  Activity,
-  ExternalLink,
-  FolderOpen,
-  BarChart3
+  FolderOpen, 
+  CheckSquare, 
+  Users,
+  Calendar,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  X
 } from 'lucide-react';
 
-const ProjectOverview = () => {
-  // Fetch projects data
-  const { data: projectsResponse, isLoading: projectsLoading, error: projectsError } = useQuery(
-    'projects',
+const ProjectsPage = () => {
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [newProject, setNewProject] = useState({
+    name: '',
+    description: '',
+    owner: ''
+  });
+
+  const queryClient = useQueryClient();
+
+  // Fetch projects
+  const { data: projectsResponse, isLoading: projectsLoading } = useQuery(
+    'projects-page',
     () => apiService.projects.getAll(),
-    { retry: 1, refetchOnWindowFocus: false }
+    { retry: 2 }
   );
 
-  // Fetch actions data for metrics
-  const { data: actionsResponse, isLoading: actionsLoading } = useQuery(
-    'actions',
+  // Fetch actions to show project stats
+  const { data: actionsResponse } = useQuery(
+    'actions-for-projects',
     () => apiService.actions.getAll(),
-    { retry: 1, refetchOnWindowFocus: false }
+    { retry: 2 }
   );
 
-  // Calculate metrics
-  const projects = projectsResponse?.data?.projects || [];
-  const actions = actionsResponse?.data?.actions || [];
-  const totalActions = actions.length;
-  const activeProjects = projects.filter(p => p.status === 'active').length;
-  const completedActions = actions.filter(a => a.status === 'completed').length;
-  const completionRate = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
+  // Create project mutation
+  const createProjectMutation = useMutation(
+    (projectData) => apiService.projects.create(projectData),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('projects-page');
+        queryClient.invalidateQueries('nav-projects');
+        setShowCreateProject(false);
+        setNewProject({ name: '', description: '', owner: '' });
+      },
+      onError: (error) => {
+        console.error('Failed to create project:', error);
+      }
+    }
+  );
 
-  console.log('Projects data:', projects);
-  console.log('Actions data:', actions);
+  const handleCreateProject = (e) => {
+    e.preventDefault();
+    if (newProject.name && newProject.description) {
+      createProjectMutation.mutate(newProject);
+    }
+  };
+
+  // Extract data
+  const projects = projectsResponse?.projects || [];
+  const actions = actionsResponse?.actions || [];
+
+  // Calculate project stats
+  const getProjectStats = (projectId) => {
+    const projectActions = actions.filter(action => action.projectId === projectId);
+    return {
+      totalActions: projectActions.length,
+      pendingActions: projectActions.filter(a => a.status === 'PENDING').length,
+      completedActions: projectActions.filter(a => a.status === 'COMPLETED').length
+    };
+  };
+
+  if (projectsLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-gray-600">Loading projects...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8" style={{ marginLeft: '256px' }}> {/* Fixed sidebar overlap */}
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Project Overview</h1>
-              <p className="text-gray-600">Monitor your action tracking and project delivery platform</p>
-            </div>
-            <Link 
-              to="/actions" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Action
-            </Link>
-          </div>
+    <div className="p-4 lg:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Projects</h1>
+          <p className="text-gray-600 mt-1">Organize and manage your action items by project</p>
         </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Actions */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckSquare className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Actions</p>
-                <p className="text-2xl font-bold text-gray-900">{totalActions}</p>
-                <p className="text-xs text-gray-500 mt-1">+0%</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Active Projects */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <FolderOpen className="w-5 h-5 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Projects</p>
-                <p className="text-2xl font-bold text-gray-900">{activeProjects}</p>
-                <p className="text-xs text-gray-500 mt-1">{projects.length} total</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Documents Processed */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Upload className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Documents Processed</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
-                <p className="text-xs text-gray-500 mt-1">+0 today</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Completion Rate */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Completion Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{completionRate}%</p>
-                <p className="text-xs text-gray-500 mt-1">{completedActions}/{totalActions} completed</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Loading States */}
-        {(projectsLoading || actionsLoading) && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex space-x-4">
-                    <div className="rounded-full bg-gray-200 h-8 w-8"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error States */}
-        {(projectsError || actionsResponse?.error) && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <p className="text-red-800">Error loading data. Please check your API connection.</p>
-            <p className="text-sm text-red-600 mt-1">
-              Projects: {projectsError?.message || 'OK'} | 
-              Actions: {actionsResponse?.error || 'OK'}
-            </p>
-          </div>
-        )}
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-            
-            {!projectsLoading && !actionsLoading && (actions.length > 0 || projects.length > 0) ? (
-              <div className="space-y-4">
-                {/* Show recent projects */}
-                {projects.slice(0, 2).map(project => (
-                  <div key={project.projectId} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <FolderOpen className="w-4 h-4 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">Project created: {project.name}</p>
-                      <p className="text-xs text-gray-500">{new Date(project.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                ))}
-                {/* Show recent actions */}
-                {actions.slice(0, 3).map(action => (
-                  <div key={action.actionId} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <CheckSquare className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">Action: {action.title}</p>
-                      <p className="text-xs text-gray-500">Assigned to {action.owner} • {action.status}</p>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(action.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : !projectsLoading && !actionsLoading ? (
-              <div className="text-center py-8">
-                <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No recent activity</p>
-                <p className="text-sm text-gray-400 mt-1">Create your first project or action to get started</p>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="space-y-3">
-              <Link 
-                to="/actions"
-                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group block"
-              >
-                <div className="flex items-center">
-                  <CheckSquare className="w-4 h-4 text-gray-400 group-hover:text-blue-600 mr-3" />
-                  <span className="font-medium text-gray-700 group-hover:text-blue-700">Create Action</span>
-                </div>
-              </Link>
-
-              <button className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors group">
-                <div className="flex items-center">
-                  <FolderOpen className="w-4 h-4 text-gray-400 group-hover:text-purple-600 mr-3" />
-                  <span className="font-medium text-gray-700 group-hover:text-purple-700">Create Project</span>
-                </div>
-              </button>
-
-              <Link 
-                to="/documents"
-                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors group block"
-              >
-                <div className="flex items-center">
-                  <Upload className="w-4 h-4 text-gray-400 group-hover:text-green-600 mr-3" />
-                  <span className="font-medium text-gray-700 group-hover:text-green-700">Upload Document</span>
-                </div>
-              </Link>
-
-              <Link 
-                to="/workflows"
-                className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors group block"
-              >
-                <div className="flex items-center">
-                  <GitBranch className="w-4 h-4 text-gray-400 group-hover:text-orange-600 mr-3" />
-                  <span className="font-medium text-gray-700 group-hover:text-orange-700">View Workflows</span>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* System Status */}
-        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">API Gateway</span>
-              <span className="text-sm font-medium text-green-600">Operational</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Lambda Functions</span>
-              <span className="text-sm font-medium text-green-600">Healthy</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Step Functions</span>
-              <span className="text-sm font-medium text-green-600">Active</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">DynamoDB</span>
-              <span className="text-sm font-medium text-green-600">Available</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">EventBridge</span>
-              <span className="text-sm font-medium text-green-600">Running</span>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setShowCreateProject(true)}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Create Project
+        </button>
       </div>
+
+      {/* Projects Grid */}
+      {projects.length === 0 ? (
+        <div className="text-center py-12">
+          <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+          <p className="text-gray-600 mb-4">Create your first project to organize your actions</p>
+          <button
+            onClick={() => setShowCreateProject(true)}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Project
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project) => {
+            const stats = getProjectStats(project.projectId);
+            
+            return (
+              <div key={project.projectId} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{project.description}</p>
+                  </div>
+                  <div className="ml-4">
+                    <button className="p-1 text-gray-400 hover:text-gray-600 rounded">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Project Stats */}
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="p-2 bg-blue-50 rounded">
+                      <div className="text-lg font-semibold text-blue-600">{stats.totalActions}</div>
+                      <div className="text-xs text-blue-600">Total</div>
+                    </div>
+                    <div className="p-2 bg-yellow-50 rounded">
+                      <div className="text-lg font-semibold text-yellow-600">{stats.pendingActions}</div>
+                      <div className="text-xs text-yellow-600">Pending</div>
+                    </div>
+                    <div className="p-2 bg-green-50 rounded">
+                      <div className="text-lg font-semibold text-green-600">{stats.completedActions}</div>
+                      <div className="text-xs text-green-600">Done</div>
+                    </div>
+                  </div>
+
+                  {/* Project Info */}
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="flex items-center text-sm text-gray-500 mb-1">
+                      <Users className="w-3 h-3 mr-1" />
+                      {project.owner || 'Unassigned'}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Created {new Date(project.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <div className="flex justify-between items-center pt-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      project.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {project.status || 'ACTIVE'}
+                    </span>
+                    
+                    <div className="flex space-x-1">
+                      <button className="p-1 text-gray-400 hover:text-blue-600 rounded">
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                      <button className="p-1 text-gray-400 hover:text-red-600 rounded">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Project Modal */}
+      {showCreateProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Create New Project</h3>
+              <button
+                onClick={() => setShowCreateProject(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateProject} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  value={newProject.name}
+                  onChange={(e) => setNewProject({...newProject, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter project name"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows="3"
+                  placeholder="Describe the project"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Owner
+                </label>
+                <input
+                  type="email"
+                  value={newProject.owner}
+                  onChange={(e) => setNewProject({...newProject, owner: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="owner@company.com"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateProject(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createProjectMutation.isLoading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {createProjectMutation.isLoading ? 'Creating...' : 'Create Project'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ProjectOverview;
+export default ProjectsPage;
