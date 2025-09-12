@@ -169,3 +169,21 @@ variable "unauthorized_api_calls_threshold" {
   type        = number
   default     = 20 # Higher threshold for dev to reduce alert noise
 }
+
+variable "sender_email" {
+  description = "Email address for sending notifications"
+  type        = string
+  default     = "actions@engsnayl.com"  # Professional sender address
+}
+
+variable "dashboard_url" {
+  description = "URL of the action tracking dashboard"
+  type        = string  
+  default     = "https://actions.engsnayl.com"  # Custom subdomain
+}
+
+variable "domain_name" {
+  description = "Domain name for SES verification"
+  type        = string
+  default     = "engsnayl.com"  # Your registered domain
+}
