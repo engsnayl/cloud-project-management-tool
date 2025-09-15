@@ -174,17 +174,17 @@ variable "unauthorized_api_calls_threshold" {
 variable "sender_email" {
   description = "Email address for sending notifications"
   type        = string
-  default     = "actions@engsnayl.com"  # Professional sender address
+  default     = "actions@engsnayl.com" # Professional sender address
 }
 
 variable "dashboard_url" {
   description = "URL of the action tracking dashboard"
-  type        = string  
-  default     = "https://actions.engsnayl.com"  # Custom subdomain
+  type        = string
+  default     = "https://actions.engsnayl.com" # Custom subdomain
 }
 
 variable "domain_name" {
   description = "Domain name for SES verification"
   type        = string
-  default     = "engsnayl.com"  # Your registered domain
+  default     = "engsnayl.com" # Your registered domain
 }

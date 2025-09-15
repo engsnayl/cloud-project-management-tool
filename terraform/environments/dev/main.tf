@@ -186,18 +186,18 @@ module "cloudtrail" {
 # Email Notifications Module
 module "email_notifications" {
   source = "../../modules/email-notifications"
-  
-  project_name         = var.project_name
-  environment          = var.environment
-  dynamodb_table_name  = module.dynamodb.table_name
-  dynamodb_table_arn   = module.dynamodb.table_arn
-  sender_email         = var.sender_email
-  domain_name          = var.domain_name  # ADD THIS LINE
-  dashboard_url        = var.dashboard_url
+
+  project_name           = var.project_name
+  environment            = var.environment
+  dynamodb_table_name    = module.dynamodb.table_name
+  dynamodb_table_arn     = module.dynamodb.table_arn
+  sender_email           = var.sender_email
+  domain_name            = var.domain_name # ADD THIS LINE
+  dashboard_url          = var.dashboard_url
   enable_daily_reminders = true
   enable_overdue_alerts  = true
   reminder_timezone      = "Europe/London"
-  
+
   tags = {
     Purpose = "email-notifications"
     Feature = "mvp-reminders"
