@@ -1,4 +1,5 @@
 # terraform/environments/staging/variables.tf
+# terraform/environments/dev/variables.tf
 
 variable "project_name" {
   description = "Name of the project"
@@ -9,7 +10,7 @@ variable "project_name" {
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "staging"
+  default     = "dev"
 }
 
 variable "aws_region" {
@@ -28,7 +29,7 @@ variable "owner_email" {
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
-  default     = "10.1.0.0/16" # Different from dev to avoid conflicts
+  default     = "10.0.0.0/16"
 }
 
 variable "public_subnet_count" {
@@ -53,7 +54,7 @@ variable "enable_nat_gateway" {
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB"
   type        = bool
-  default     = true # Enable for staging environment
+  default     = false
 }
 
 # S3 Configuration - Updated to match module
@@ -66,40 +67,40 @@ variable "enable_versioning" {
 variable "enable_lifecycle_policy" {
   description = "Enable S3 lifecycle policy"
   type        = bool
-  default     = true # Enable for staging
+  default     = false
 }
 
 variable "document_retention_days" {
   description = "Document retention in days"
   type        = number
-  default     = 90 # Shorter retention for staging
+  default     = 365
 }
 
 variable "allowed_origins" {
   description = "CORS allowed origins"
   type        = list(string)
-  default     = ["https://staging.deliverycommand.com", "https://staging-app.deliverycommand.com"]
+  default     = ["*"]
 }
 
 # API Gateway Configuration
 variable "api_stage_name" {
   description = "API Gateway stage name"
   type        = string
-  default     = "staging"
+  default     = "dev"
 }
 
 # Frontend Configuration
 variable "frontend_url" {
   description = "Frontend application URL for OAuth callbacks"
   type        = string
-  default     = "https://staging.deliverycommand.com"
+  default     = "http://localhost:3000"
 }
 
 # Monitoring Configuration
 variable "alert_email" {
   description = "Email address for CloudWatch alerts"
   type        = string
-  default     = "staging-alerts@example.com"
+  default     = ""
 }
 
 variable "enable_monitoring" {
@@ -111,41 +112,39 @@ variable "enable_monitoring" {
 variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number
-  default     = 30 # Longer retention for staging
+  default     = 14
 }
 
 variable "overdue_actions_threshold" {
   description = "Threshold for overdue actions alarm"
   type        = number
-  default     = 3 # Lower threshold for staging
+  default     = 5
 }
 
 variable "critical_alert_email" {
   description = "Email for critical alerts"
   type        = string
-  default     = "critical-staging@example.com"
+  default     = ""
 }
 
 # Step Functions Configuration
 variable "requirement_approval_workflow_arn" {
   description = "ARN of the requirement approval Step Functions workflow"
   type        = string
-  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-staging-requirement-approval"
+  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-requirement-approval"
 }
 
 variable "document_processing_workflow_arn" {
   description = "ARN of the document processing Step Functions workflow"
   type        = string
-  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-staging-document-processing"
+  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-document-processing"
 }
-
-# Add these variables to terraform/environments/staging/variables.tf
 
 # CloudTrail Configuration - Ultra-Minimal for Portfolio Demo
 variable "enable_cloudtrail_data_events" {
   description = "Enable CloudTrail data events for S3 and Lambda (increases costs)"
   type        = bool
-  default     = false # Keep disabled to control costs
+  default     = false # Keep disabled to save costs
 }
 
 variable "cloudtrail_retention_days" {
@@ -163,11 +162,29 @@ variable "cloudtrail_cloudwatch_retention_days" {
 variable "security_alert_email" {
   description = "Email address for security alerts"
   type        = string
-  default     = "" # Set staging-specific security email if desired
+  default     = "" # Set this to receive security alerts
 }
 
 variable "unauthorized_api_calls_threshold" {
   description = "Threshold for unauthorized API calls alarm"
   type        = number
-  default     = 15 # Moderate threshold for staging
+  default     = 20 # Higher threshold for dev to reduce alert noise
+}
+
+variable "sender_email" {
+  description = "Email address for sending notifications"
+  type        = string
+  default     = "actions@engsnayl.com"  # Professional sender address
+}
+
+variable "dashboard_url" {
+  description = "URL of the action tracking dashboard"
+  type        = string  
+  default     = "https://actions.engsnayl.com"  # Custom subdomain
+}
+
+variable "domain_name" {
+  description = "Domain name for SES verification"
+  type        = string
+  default     = "engsnayl.com"  # Your registered domain
 }

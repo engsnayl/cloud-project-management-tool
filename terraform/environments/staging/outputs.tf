@@ -204,7 +204,7 @@ Log Groups Created:
 EOF
 }
 
-# Cloudtrail outputs
+# CloudTrail Outputs
 output "cloudtrail_arn" {
   description = "ARN of the CloudTrail"
   value       = module.cloudtrail.cloudtrail_arn

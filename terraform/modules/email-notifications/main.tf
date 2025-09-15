@@ -284,11 +284,6 @@ resource "aws_iam_role_policy" "email_reminder_policy" {
           "ses:SendBulkTemplatedEmail"
         ]
         Resource = "*"
-        Condition = {
-          StringEquals = {
-            "ses:ConfigurationSet" = aws_ses_configuration_set.action_reminders.name
-          }
-        }
       }
     ]
   })
