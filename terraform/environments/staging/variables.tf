@@ -1,5 +1,4 @@
 # terraform/environments/staging/variables.tf
-# terraform/environments/dev/variables.tf
 
 variable "project_name" {
   description = "Name of the project"
@@ -171,6 +170,7 @@ variable "unauthorized_api_calls_threshold" {
   default     = 20 # Higher threshold for dev to reduce alert noise
 }
 
+# Email Notifications Configuration
 variable "sender_email" {
   description = "Email address for sending notifications"
   type        = string
@@ -180,11 +180,18 @@ variable "sender_email" {
 variable "dashboard_url" {
   description = "URL of the action tracking dashboard"
   type        = string
-  default     = "https://actions.engsnayl.com" # Custom subdomain
+  default     = "https://actions-dev.engsnayl.com" # Custom subdomain for dev
 }
 
 variable "domain_name" {
-  description = "Domain name for SES verification"
+  description = "Domain name for SES verification and Route53"
   type        = string
   default     = "engsnayl.com" # Your registered domain
+}
+
+# Frontend Hosting Configuration - NEW for Phase 17!
+variable "dashboard_url_hostname" {
+  description = "Hostname for the dashboard (without https://)"
+  type        = string
+  default     = "actions-dev.engsnayl.com" # Dev subdomain
 }

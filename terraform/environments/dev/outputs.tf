@@ -1,3 +1,5 @@
+# terraform/environments/dev/outputs.tf
+
 # VPC Outputs
 output "vpc_id" {
   description = "ID of the VPC"
@@ -41,7 +43,7 @@ output "s3_bucket_arn" {
   value       = module.s3.bucket_arn
 }
 
-# Lambda Outputs (FIXED: use actual output names)
+# Lambda Outputs
 output "api_handler_function_name" {
   description = "Name of the API handler Lambda function"
   value       = module.lambda.api_handler_function_name
@@ -62,7 +64,7 @@ output "document_processor_function_arn" {
   value       = module.lambda.document_processor_function_arn
 }
 
-# API Gateway Outputs (FIXED: use actual output names)
+# API Gateway Outputs
 output "api_gateway_url" {
   description = "URL of the API Gateway"
   value       = module.api_gateway.api_gateway_url
@@ -109,7 +111,7 @@ output "event_dlq_url" {
   value       = module.eventbridge.event_dlq_url
 }
 
-# Cognito Outputs (NEW)
+# Cognito Outputs
 output "cognito_user_pool_id" {
   description = "Cognito User Pool ID"
   value       = module.cognito.user_pool_id
@@ -160,8 +162,6 @@ output "jwt_authorizer_function_name" {
   description = "Name of the JWT authorizer Lambda function"
   value       = module.lambda.jwt_authorizer_function_name
 }
-
-# Add this to your terraform/environments/dev/outputs.tf file
 
 # CloudWatch Monitoring Outputs
 output "monitoring_dashboards" {
@@ -236,4 +236,85 @@ output "security_monitoring" {
     metric_filters = module.cloudtrail.security_metric_filters
     alarms         = module.cloudtrail.security_alarms
   }
+}
+
+# Email Notifications Outputs - CORRECTED to match actual module outputs
+output "ses_configuration_set_name" {
+  description = "Name of the SES configuration set"
+  value       = module.email_notifications.ses_configuration_set_name
+}
+
+output "email_reminder_function_name" {
+  description = "Email reminder Lambda function name"
+  value       = module.email_notifications.email_reminder_function_name
+}
+
+output "email_reminder_function_arn" {
+  description = "Email reminder Lambda function ARN"
+  value       = module.email_notifications.email_reminder_function_arn
+}
+
+output "sender_email" {
+  description = "Email address used for sending notifications"
+  value       = module.email_notifications.sender_email
+}
+
+output "ses_domain_verification_token" {
+  description = "SES domain verification token"
+  value       = module.email_notifications.ses_domain_verification_token
+  sensitive   = true
+}
+
+# Frontend Hosting Outputs - NEW for Phase 17!
+output "frontend_bucket_name" {
+  description = "S3 bucket name for frontend hosting"
+  value       = module.frontend_hosting.s3_bucket_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  value       = module.frontend_hosting.cloudfront_distribution_id
+}
+
+output "frontend_url" {
+  description = "Frontend application URL"
+  value       = module.frontend_hosting.frontend_url
+}
+
+output "ssl_certificate_arn" {
+  description = "SSL certificate ARN"
+  value       = module.frontend_hosting.ssl_certificate_arn
+}
+
+output "cloudfront_domain_name" {
+  description = "CloudFront distribution domain name"
+  value       = module.frontend_hosting.cloudfront_domain_name
+}
+
+# Phase 17 Completion Summary
+output "phase_17_deployment_complete" {
+  description = "Phase 17 frontend hosting deployment summary"
+  value       = <<EOF
+
+🎉 Phase 17 Frontend Hosting Deployment Complete!
+
+Frontend Resources Created:
+  - S3 Bucket: ${module.frontend_hosting.s3_bucket_name}
+  - CloudFront Distribution: ${module.frontend_hosting.cloudfront_distribution_id}
+  - SSL Certificate: ${module.frontend_hosting.ssl_certificate_arn}
+  - Frontend URL: ${module.frontend_hosting.frontend_url}
+
+Email System Status:
+  - Sender Email: ${module.email_notifications.sender_email}
+  - Lambda Function: ${module.email_notifications.email_reminder_function_name}
+  - SES Configuration: ${module.email_notifications.ses_configuration_set_name}
+
+Next Steps:
+  1. Deploy your React frontend to: ${module.frontend_hosting.s3_bucket_name}
+  2. Access your application at: ${module.frontend_hosting.frontend_url}
+  3. Update email dashboard links to use: ${module.frontend_hosting.frontend_url}
+
+Your email notifications now point to a real, working frontend! 🚀
+
+EOF
 }

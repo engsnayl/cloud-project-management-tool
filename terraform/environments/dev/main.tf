@@ -10,6 +10,11 @@ locals {
   }
 }
 
+# Data source for Route53 hosted zone
+data "aws_route53_zone" "main" {
+  name = var.domain_name
+}
+
 # VPC Module
 module "vpc" {
   source = "../../modules/vpc"
@@ -192,7 +197,7 @@ module "email_notifications" {
   dynamodb_table_name    = module.dynamodb.table_name
   dynamodb_table_arn     = module.dynamodb.table_arn
   sender_email           = var.sender_email
-  domain_name            = var.domain_name # ADD THIS LINE
+  domain_name            = var.domain_name
   dashboard_url          = var.dashboard_url
   enable_daily_reminders = true
   enable_overdue_alerts  = true
@@ -202,4 +207,24 @@ module "email_notifications" {
     Purpose = "email-notifications"
     Feature = "mvp-reminders"
   }
+}
+
+# Frontend Hosting Module - NEW for Phase 17!
+module "frontend_hosting" {
+  source = "../../modules/frontend-hosting"
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  project_name    = var.project_name
+  environment     = var.environment
+  domain_name     = var.dashboard_url_hostname
+  zone_id         = data.aws_route53_zone.main.zone_id
+  api_gateway_url = module.api_gateway.api_gateway_url
+
+  tags = merge(local.common_tags, {
+    Purpose = "frontend-hosting"
+    Feature = "web-interface"
+  })
 }
