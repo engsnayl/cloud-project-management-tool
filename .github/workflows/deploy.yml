@@ -215,7 +215,7 @@ jobs:
     if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     environment: 
       name: development
-      url: https://dev.actiontracker.com
+      url: https://actions-dev.engsnayl.com
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -245,6 +245,34 @@ jobs:
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
           echo "=== Development deployment completed ==="
+
+      - name: Deploy Frontend to CloudFront
+        run: |
+          cd terraform/environments/dev
+          
+          # Get S3 bucket and CloudFront distribution from Terraform outputs
+          BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
+          DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+          
+          echo "=== Deploying frontend to S3 ==="
+          echo "Bucket: $BUCKET_NAME"
+          echo "Distribution: $DISTRIBUTION_ID"
+          
+          # Go back to project root and sync frontend files
+          cd ../../../
+          
+          # Verify frontend build exists
+          ls -la frontend/dist/
+          
+          # Sync frontend files to S3
+          aws s3 sync frontend/dist/ s3://$BUCKET_NAME/ --delete
+          
+          # Create CloudFront invalidation to clear cache
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+            
+          echo "=== Frontend deployment completed ==="
 
       - name: Run Smoke Tests
         run: |
@@ -316,7 +344,7 @@ jobs:
     if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment: 
       name: staging
-      url: https://staging.actiontracker.com
+      url: https://actions-staging.engsnayl.com
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -347,6 +375,34 @@ jobs:
           terraform apply -auto-approve tfplan
           echo "=== Staging deployment completed ==="
 
+      - name: Deploy Frontend to Staging CloudFront
+        run: |
+          cd terraform/environments/staging
+          
+          # Get S3 bucket and CloudFront distribution from Terraform outputs
+          BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
+          DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+          
+          echo "=== Deploying frontend to Staging S3 ==="
+          echo "Bucket: $BUCKET_NAME"
+          echo "Distribution: $DISTRIBUTION_ID"
+          
+          # Go back to project root and sync frontend files
+          cd ../../../
+          
+          # Verify frontend build exists
+          ls -la frontend/dist/
+          
+          # Sync frontend files to S3
+          aws s3 sync frontend/dist/ s3://$BUCKET_NAME/ --delete
+          
+          # Create CloudFront invalidation to clear cache
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+            
+          echo "=== Staging frontend deployment completed ==="
+
       - name: Staging Smoke Tests
         run: |
           ./scripts/smoke-tests.sh staging || echo "Staging smoke tests completed"
@@ -363,7 +419,7 @@ jobs:
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
     environment: 
       name: production
-      url: https://actiontracker.com
+      url: https://actions.engsnayl.com
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -391,6 +447,34 @@ jobs:
           terraform init
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
+
+      - name: Deploy Frontend to Production CloudFront
+        run: |
+          cd terraform/environments/prod
+          
+          # Get S3 bucket and CloudFront distribution from Terraform outputs
+          BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
+          DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+          
+          echo "=== Deploying frontend to Production S3 ==="
+          echo "Bucket: $BUCKET_NAME"
+          echo "Distribution: $DISTRIBUTION_ID"
+          
+          # Go back to project root and sync frontend files
+          cd ../../../
+          
+          # Verify frontend build exists
+          ls -la frontend/dist/
+          
+          # Sync frontend files to S3
+          aws s3 sync frontend/dist/ s3://$BUCKET_NAME/ --delete
+          
+          # Create CloudFront invalidation to clear cache
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+            
+          echo "=== Production frontend deployment completed ==="
 
       - name: Production Smoke Tests
         run: |
