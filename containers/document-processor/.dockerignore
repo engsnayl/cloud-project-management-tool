@@ -1,0 +1,8 @@
+# Add this to .dockerignore
+echo "*.pyc
+__pycache__/
+.git/
+.gitignore
+README.md
+.pytest_cache/
+*.log" > .dockerignore

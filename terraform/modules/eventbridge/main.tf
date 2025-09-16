@@ -34,35 +34,39 @@ resource "aws_iam_role" "eventbridge_role" {
   })
 }
 
-# IAM Policy for EventBridge to invoke Step Functions and Lambda
+# IAM Policy for EventBridge to invoke Step Functions and Lambda - FIXED
 resource "aws_iam_role_policy" "eventbridge_policy" {
   name = "${var.project_name}-${var.environment}-eventbridge-policy"
   role = aws_iam_role.eventbridge_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "states:StartExecution"
-        ]
-        Resource = [
-          var.requirement_approval_workflow_arn,
-          var.document_processing_workflow_arn
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:InvokeFunction"
-        ]
-        Resource = [
-          var.api_handler_function_arn,
-          var.document_processor_function_arn
-        ]
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "lambda:InvokeFunction"
+          ]
+          Resource = [
+            var.api_handler_function_arn,
+            var.document_processor_function_arn
+          ]
+        }
+      ],
+      var.requirement_approval_workflow_arn != "" || var.document_processing_workflow_arn != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "states:StartExecution"
+          ]
+          Resource = compact([
+            var.requirement_approval_workflow_arn != "" ? var.requirement_approval_workflow_arn : null,
+            var.document_processing_workflow_arn != "" ? var.document_processing_workflow_arn : null
+          ])
+        }
+      ] : []
+    )
   })
 }
 
@@ -87,8 +91,9 @@ resource "aws_cloudwatch_event_rule" "requirement_created" {
   })
 }
 
-# EventBridge Target: Requirement Created -> Step Functions
+# EventBridge Target: Requirement Created -> Step Functions - FIXED
 resource "aws_cloudwatch_event_target" "requirement_created_target" {
+  count          = var.requirement_approval_workflow_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.requirement_created.name
   target_id      = "RequirementCreatedTarget"
   arn            = var.requirement_approval_workflow_arn
@@ -132,8 +137,9 @@ resource "aws_cloudwatch_event_rule" "document_uploaded" {
   })
 }
 
-# EventBridge Target: Document Uploaded -> Step Functions
+# EventBridge Target: Document Uploaded -> Step Functions - FIXED
 resource "aws_cloudwatch_event_target" "document_uploaded_target" {
+  count          = var.document_processing_workflow_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.document_uploaded.name
   target_id      = "DocumentUploadedTarget"
   arn            = var.document_processing_workflow_arn
@@ -293,4 +299,3 @@ resource "aws_cloudwatch_event_archive" "deliverycommand_archive" {
     source = ["deliverycommand.requirements", "deliverycommand.documents", "deliverycommand.workflows"]
   })
 }
-
