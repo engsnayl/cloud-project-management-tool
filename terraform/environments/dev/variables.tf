@@ -1,5 +1,6 @@
 # terraform/environments/dev/variables.tf
 
+# Core Configuration
 variable "project_name" {
   description = "Name of the project"
   type        = string
@@ -44,19 +45,19 @@ variable "private_subnet_count" {
 }
 
 variable "enable_nat_gateway" {
-  description = "Enable NAT Gateway (costs money)"
+  description = "Enable NAT Gateway"
   type        = bool
   default     = false
 }
 
-# DynamoDB Configuration
+# Database Configuration
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB"
   type        = bool
   default     = false
 }
 
-# S3 Configuration - Updated to match module
+# Storage Configuration
 variable "enable_versioning" {
   description = "Enable S3 bucket versioning"
   type        = bool
@@ -81,29 +82,28 @@ variable "allowed_origins" {
   default     = ["*"]
 }
 
-# API Gateway Configuration
+# API Configuration
 variable "api_stage_name" {
   description = "API Gateway stage name"
   type        = string
   default     = "dev"
 }
 
-# Frontend Configuration
 variable "frontend_url" {
-  description = "Frontend application URL for OAuth callbacks"
+  description = "Frontend application URL"
   type        = string
   default     = "http://localhost:3000"
 }
 
 # Monitoring Configuration
 variable "alert_email" {
-  description = "Email address for CloudWatch alerts"
+  description = "Email address for alerts"
   type        = string
   default     = ""
 }
 
 variable "enable_monitoring" {
-  description = "Enable CloudWatch monitoring and alerting"
+  description = "Enable monitoring and alerting"
   type        = bool
   default     = true
 }
@@ -126,72 +126,96 @@ variable "critical_alert_email" {
   default     = ""
 }
 
-# Step Functions Configuration
-variable "requirement_approval_workflow_arn" {
-  description = "ARN of the requirement approval Step Functions workflow"
-  type        = string
-  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-requirement-approval"
-}
-
-variable "document_processing_workflow_arn" {
-  description = "ARN of the document processing Step Functions workflow"
-  type        = string
-  default     = "arn:aws:states:eu-west-1:340752829546:stateMachine:deliverycommand-dev-document-processing"
-}
-
-# CloudTrail Configuration - Ultra-Minimal for Portfolio Demo
+# Security Configuration
 variable "enable_cloudtrail_data_events" {
-  description = "Enable CloudTrail data events for S3 and Lambda (increases costs)"
+  description = "Enable CloudTrail data events"
   type        = bool
-  default     = false # Keep disabled to save costs
+  default     = false
 }
 
 variable "cloudtrail_retention_days" {
-  description = "Number of days to retain CloudTrail logs in S3"
+  description = "CloudTrail log retention days"
   type        = number
-  default     = 90 # 3 months for demo (ultra-minimal)
+  default     = 90
 }
 
 variable "cloudtrail_cloudwatch_retention_days" {
-  description = "Number of days to retain CloudTrail logs in CloudWatch"
+  description = "CloudTrail CloudWatch log retention days"
   type        = number
-  default     = 7 # 1 week for ultra-minimal costs
+  default     = 7
 }
 
 variable "security_alert_email" {
   description = "Email address for security alerts"
   type        = string
-  default     = "" # Set this to receive security alerts
+  default     = ""
 }
 
 variable "unauthorized_api_calls_threshold" {
   description = "Threshold for unauthorized API calls alarm"
   type        = number
-  default     = 20 # Higher threshold for dev to reduce alert noise
+  default     = 20
 }
 
-# Email Notifications Configuration
+# Email Notifications
 variable "sender_email" {
   description = "Email address for sending notifications"
   type        = string
-  default     = "actions@engsnayl.com" # Professional sender address
+  default     = "actions@engsnayl.com"
 }
 
 variable "dashboard_url" {
-  description = "URL of the action tracking dashboard"
+  description = "URL of the dashboard"
   type        = string
-  default     = "https://actions-dev.engsnayl.com" # Custom subdomain for dev
+  default     = "https://actions-dev.engsnayl.com"
 }
 
 variable "domain_name" {
-  description = "Domain name for SES verification and Route53"
+  description = "Domain name"
   type        = string
-  default     = "engsnayl.com" # Your registered domain
+  default     = "engsnayl.com"
 }
 
-# Frontend Hosting Configuration - NEW for Phase 17!
 variable "dashboard_url_hostname" {
-  description = "Hostname for the dashboard (without https://)"
+  description = "Dashboard hostname"
   type        = string
-  default     = "actions-dev.engsnayl.com" # Dev subdomain
+  default     = "actions-dev.engsnayl.com"
+}
+
+# Container Configuration
+variable "document_processor_cpu" {
+  description = "CPU units for document processor task"
+  type        = number
+  default     = 512
+}
+
+variable "document_processor_memory" {
+  description = "Memory in MB for document processor task"
+  type        = number
+  default     = 1024
+}
+
+variable "enable_container_insights" {
+  description = "Enable CloudWatch Container Insights"
+  type        = bool
+  default     = false
+}
+
+variable "container_log_retention_days" {
+  description = "Container log retention days"
+  type        = number
+  default     = 7
+}
+
+# Dynamic Workflow Configuration (removed hardcoded ARNs)
+variable "requirement_approval_workflow_arn" {
+  description = "ARN of requirement approval workflow"
+  type        = string
+  default     = ""
+}
+
+variable "document_processing_workflow_arn" {
+  description = "ARN of document processing workflow"
+  type        = string
+  default     = ""
 }
