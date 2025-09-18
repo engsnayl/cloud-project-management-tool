@@ -26,6 +26,26 @@ variable "api_handler_invoke_arn" {
   type        = string
 }
 
+variable "jwt_authorizer_invoke_arn" {
+  description = "Invoke ARN of the JWT authorizer Lambda function"
+  type        = string
+}
+
+variable "cognito_user_pool_id" {
+  description = "Cognito User Pool ID"
+  type        = string
+}
+
+variable "document_review_api_function_name" {
+  description = "Name of the document review API Lambda function"
+  type        = string
+}
+
+variable "document_review_api_invoke_arn" {
+  description = "Invoke ARN of the document review API Lambda function"
+  type        = string
+}
+
 variable "enable_cors" {
   description = "Enable CORS for the API"
   type        = bool
@@ -48,14 +68,4 @@ variable "tags" {
   description = "Additional tags to apply to resources"
   type        = map(string)
   default     = {}
-}
-
-variable "jwt_authorizer_invoke_arn" {
-  description = "Invoke ARN of the JWT authorizer Lambda function"
-  type        = string
-}
-
-variable "cognito_user_pool_id" {
-  description = "Cognito User Pool ID"
-  type        = string
 }

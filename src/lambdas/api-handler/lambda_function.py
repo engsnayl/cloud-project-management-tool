@@ -1,6 +1,9 @@
+# /cloud-project-management-tool/src/lambdas/api-handler/lambda_function.py
+
 import json
 import boto3
 import uuid
+import os
 from datetime import datetime, timezone
 from decimal import Decimal
 import logging
@@ -10,7 +13,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('project-management-table')
+table_name = os.environ.get('DYNAMODB_TABLE', 'deliverycommand-dev-main')
+table = dynamodb.Table(table_name)
 
 def decimal_to_float(obj):
     """Convert Decimal objects to float for JSON serialization"""
@@ -53,6 +57,17 @@ def lambda_handler(event, context):
         if http_method == 'OPTIONS':
             return cors_response(200, {})
 
+        # Health check endpoint
+        if path == '/api/v1/health' and http_method == 'GET':
+            return cors_response(200, {
+                'status': 'healthy',
+                'message': 'DeliveryCommand API is running',
+                'timestamp': datetime.utcnow().isoformat(),
+                'version': '1.0.0',
+                'environment': os.environ.get('ENVIRONMENT', 'dev'),
+                'table': table_name
+            })
+
         # Route handling
         if path == '/api/v1/actions':
             if http_method == 'GET':
@@ -83,6 +98,12 @@ def lambda_handler(event, context):
                 return update_project(project_id, body)
             elif http_method == 'DELETE':
                 return delete_project(project_id)
+
+        elif path == '/api/v1/requirements':
+            if http_method == 'GET':
+                return get_requirements()
+            elif http_method == 'POST':
+                return create_requirement(body)
                 
         elif path == '/api/v1/analytics/dashboard':
             if http_method == 'GET':
@@ -92,7 +113,7 @@ def lambda_handler(event, context):
             if http_method == 'GET':
                 return get_action_analytics()
 
-        return cors_response(404, {'error': 'Not found'})
+        return cors_response(404, {'error': f'Resource not found: {path}'})
         
     except Exception as e:
         logger.error(f"Error: {str(e)}")
@@ -382,6 +403,84 @@ def create_project(body):
         
     except Exception as e:
         logger.error(f"Error creating project: {str(e)}")
+        return cors_response(500, {'error': str(e)})
+
+def get_requirements():
+    """Get all requirements"""
+    try:
+        response = table.scan(
+            FilterExpression='begins_with(SK, :sk_prefix)',
+            ExpressionAttributeValues={':sk_prefix': 'REQUIREMENT#'}
+        )
+        
+        requirements = []
+        for item in response.get('Items', []):
+            requirement = {
+                'requirementId': item.get('requirementId', item.get('SK', '').replace('REQUIREMENT#', '')),
+                'title': item.get('title', ''),
+                'description': item.get('description', ''),
+                'status': item.get('status', 'DRAFT'),
+                'priority': item.get('priority', 'MEDIUM'),
+                'projectId': item.get('projectId', 'miscellaneous'),
+                'assignedTo': item.get('assignedTo', ''),
+                'lastModified': item.get('lastModified', ''),
+                'createdAt': item.get('createdAt', ''),
+                'createdBy': item.get('createdBy', 'system'),
+                'estimatedHours': item.get('estimatedHours', 0.0)
+            }
+            requirements.append(requirement)
+        
+        return cors_response(200, {'requirements': requirements, 'count': len(requirements)})
+        
+    except Exception as e:
+        logger.error(f"Error getting requirements: {str(e)}")
+        return cors_response(500, {'error': str(e)})
+
+def create_requirement(body):
+    """Create a new requirement"""
+    try:
+        requirement_id = f"REQ-{int(datetime.now(timezone.utc).timestamp())}"
+        now = datetime.now(timezone.utc).isoformat()
+        
+        item = {
+            'PK': f'REQUIREMENT#{requirement_id}',
+            'SK': f'REQUIREMENT#{requirement_id}',
+            'GSI1PK': f'REQUIREMENT#{body.get("priority", "MEDIUM")}',
+            'GSI1SK': now,
+            'requirementId': requirement_id,
+            'title': body.get('title', 'Untitled Requirement'),
+            'description': body.get('description', ''),
+            'status': body.get('status', 'DRAFT'),
+            'priority': body.get('priority', 'MEDIUM'),
+            'projectId': body.get('projectId', 'miscellaneous'),
+            'assignedTo': body.get('assignedTo', ''),
+            'createdAt': now,
+            'lastModified': now,
+            'createdBy': body.get('createdBy', 'system'),
+            'estimatedHours': body.get('estimatedHours', 0.0),
+            'entityType': 'requirement'
+        }
+        
+        table.put_item(Item=item)
+        
+        requirement = {
+            'requirementId': requirement_id,
+            'title': item['title'],
+            'description': item['description'],
+            'status': item['status'],
+            'priority': item['priority'],
+            'projectId': item['projectId'],
+            'assignedTo': item['assignedTo'],
+            'createdAt': now,
+            'lastModified': now,
+            'createdBy': item['createdBy'],
+            'estimatedHours': item['estimatedHours']
+        }
+        
+        return cors_response(201, requirement)
+        
+    except Exception as e:
+        logger.error(f"Error creating requirement: {str(e)}")
         return cors_response(500, {'error': str(e)})
 
 def ensure_miscellaneous_project():

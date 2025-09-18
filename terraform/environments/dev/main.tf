@@ -78,11 +78,13 @@ module "lambda" {
   dynamodb_table_arn  = module.dynamodb.table_arn
   s3_bucket_name      = module.s3.bucket_name
   s3_bucket_arn       = module.s3.bucket_arn
+  log_retention_days  = var.log_retention_days
 
   # Lambda zip paths
-  api_handler_zip_path        = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
-  document_processor_zip_path = "${path.root}/../../../src/lambdas/document-processor/lambda-deployment.zip"
-  jwt_authorizer_zip_path     = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
+  api_handler_zip_path         = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
+  document_processor_zip_path  = "${path.root}/../../../src/lambdas/document-processor/lambda-deployment.zip"
+  jwt_authorizer_zip_path      = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
+  document_review_api_zip_path = "${path.root}/../../../src/lambdas/document-review-api.zip"
 
   # Cognito integration (initially empty)
   cognito_user_pool_id      = ""
@@ -98,13 +100,15 @@ module "lambda" {
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
-  project_name              = var.project_name
-  environment               = var.environment
-  stage_name                = var.api_stage_name
-  api_handler_function_name = module.lambda.api_handler_function_name
-  api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
-  jwt_authorizer_invoke_arn = module.lambda.jwt_authorizer_invoke_arn
-  cognito_user_pool_id      = module.cognito.user_pool_id
+  project_name                      = var.project_name
+  environment                       = var.environment
+  stage_name                        = var.api_stage_name
+  api_handler_function_name         = module.lambda.api_handler_function_name
+  api_handler_invoke_arn            = module.lambda.api_handler_invoke_arn
+  jwt_authorizer_invoke_arn         = module.lambda.jwt_authorizer_invoke_arn
+  cognito_user_pool_id              = module.cognito.user_pool_id
+  document_review_api_function_name = module.lambda.document_review_api_function_name
+  document_review_api_invoke_arn    = module.lambda.document_review_api_invoke_arn
 
   tags = local.common_tags
 
