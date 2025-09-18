@@ -15,16 +15,27 @@ data "aws_region" "current" {}
 # Data source for current AWS caller identity
 data "aws_caller_identity" "current" {}
 
-# SES Domain Identity for sending emails
+# Data source for Route53 hosted zone
+data "aws_route53_zone" "main" {
+  count        = var.domain_name != "" ? 1 : 0
+  name         = var.domain_name
+  private_zone = false
+}
+
+# SES Domain Identity for sending emails (DOMAIN VERIFICATION ONLY)
 resource "aws_ses_domain_identity" "action_tracker" {
   count  = var.domain_name != "" ? 1 : 0
   domain = var.domain_name
 }
 
-# SES Email Identity for development (using specific email)
-resource "aws_ses_email_identity" "sender_email" {
-  count = var.sender_email != "" ? 1 : 0
-  email = var.sender_email
+# Route53 record for SES domain verification
+resource "aws_route53_record" "ses_verification" {
+  count   = var.domain_name != "" ? 1 : 0
+  zone_id = data.aws_route53_zone.main[0].zone_id
+  name    = "_amazonses.${var.domain_name}"
+  type    = "TXT"
+  ttl     = 600
+  records = [aws_ses_domain_identity.action_tracker[0].verification_token]
 }
 
 # SES Configuration Set for tracking email metrics
