@@ -6,3 +6,4 @@ This container processes PDF and DOCX documents uploaded to S3, extracting text 
 - Container updated for Phase 18.1 testing
 - Enhanced CI/CD integration with ECR
 - ECS Fargate deployment capabilities
+# Container ready for Phase 18B testing
