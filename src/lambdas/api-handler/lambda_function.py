@@ -123,15 +123,15 @@ def get_actions():
     """Get all actions"""
     try:
         response = table.scan(
-            FilterExpression='begins_with(SK, :sk_prefix)',
-            ExpressionAttributeValues={':sk_prefix': 'ACTION#'}
+            FilterExpression='begins_with(PK, :pk_prefix)',
+            ExpressionAttributeValues={':pk_prefix': 'ACTION#'}
         )
         
         actions = []
         for item in response.get('Items', []):
             # Convert DynamoDB item to action format
             action = {
-                'actionId': item.get('actionId', item.get('SK', '').replace('ACTION#', '')),
+                'actionId': item.get('actionId', item.get('PK', '').replace('ACTION#', '')),
                 'title': item.get('title', ''),
                 'description': item.get('description', ''),
                 'status': item.get('status', 'PENDING'),
@@ -348,7 +348,7 @@ def get_projects():
         ensure_miscellaneous_project()
         
         response = table.scan(
-            FilterExpression='begins_with(SK, :sk_prefix)',
+            FilterExpression='begins_with(PK, :pk_prefix)',
             ExpressionAttributeValues={':sk_prefix': 'PROJECT#'}
         )
         
@@ -409,7 +409,7 @@ def get_requirements():
     """Get all requirements"""
     try:
         response = table.scan(
-            FilterExpression='begins_with(SK, :sk_prefix)',
+            FilterExpression='begins_with(PK, :pk_prefix)',
             ExpressionAttributeValues={':sk_prefix': 'REQUIREMENT#'}
         )
         
@@ -512,15 +512,15 @@ def get_dashboard_analytics():
     try:
         # Get all actions
         actions_response = table.scan(
-            FilterExpression='begins_with(SK, :sk_prefix)',
-            ExpressionAttributeValues={':sk_prefix': 'ACTION#'}
+            FilterExpression='begins_with(PK, :pk_prefix)',
+            ExpressionAttributeValues={':pk_prefix': 'ACTION#'}
         )
         
         actions = actions_response.get('Items', [])
         
         # Get all projects
         projects_response = table.scan(
-            FilterExpression='begins_with(SK, :sk_prefix)',
+            FilterExpression='begins_with(PK, :pk_prefix)',
             ExpressionAttributeValues={':sk_prefix': 'PROJECT#'}
         )
         
@@ -568,8 +568,8 @@ def get_action_analytics():
     """Get action analytics"""
     try:
         response = table.scan(
-            FilterExpression='begins_with(SK, :sk_prefix)',
-            ExpressionAttributeValues={':sk_prefix': 'ACTION#'}
+            FilterExpression='begins_with(PK, :pk_prefix)',
+            ExpressionAttributeValues={':pk_prefix': 'ACTION#'}
         )
         
         actions = response.get('Items', [])

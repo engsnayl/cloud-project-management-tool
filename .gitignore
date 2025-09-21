@@ -132,3 +132,25 @@ src/lambdas/*/six.py
 src/lambdas/*/*.dist-info/
 src/lambdas/*/__pycache__/
 src/lambdas/*/*.pyc
+src/lambdas/*/bin/
+src/lambdas/*/*.dist-info/
+src/lambdas/*/site-packages/
+*.zip
+
+# Lambda deployment artifacts
+src/lambdas/*/*.zip
+src/lambdas/*/lambda-deployment.zip
+*.backup
+
+# Python compiled binaries
+*.so
+*cpython*.so
+
+# Lambda dependency installations
+src/lambdas/*/bin/
+src/lambdas/*/*.dist-info/
+src/lambdas/*/site-packages/
+
+# Temporary files
+fix_*.py
+*_fixed.py
