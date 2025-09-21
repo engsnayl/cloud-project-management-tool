@@ -8,6 +8,7 @@ import Actions from './components/Actions';
 import ProjectOverview from './components/Projects/ProjectOverview';
 import DocumentUpload from './components/Documents/DocumentUpload';
 import WorkflowDashboard from './components/Workflows/WorkflowDashboard';
+import DocumentReviewPage from './components/DocumentReview/DocumentReviewPage';
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -138,6 +139,7 @@ function App() {
                 <Route path="/actions" element={<Actions />} />
                 <Route path="/projects" element={<ProjectOverview />} />
                 <Route path="/documents" element={<DocumentUpload />} />
+                <Route path="/document-review" element={<DocumentReviewPage />} />
                 <Route path="/workflows" element={<WorkflowDashboard />} />
               </Routes>
             </main>

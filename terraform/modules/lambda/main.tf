@@ -141,11 +141,8 @@ resource "null_resource" "create_document_review_api_zip" {
 
   provisioner "local-exec" {
     command     = <<-EOT
-      mkdir -p $(dirname ${var.document_review_api_zip_path})
-      cd $(dirname ${var.document_review_api_zip_path})
-      echo 'exports.handler = async (event) => { return {statusCode: 200, body: JSON.stringify({message: "Document Review API"})}; };' > document-review-api.js
-      zip -r $(basename ${var.document_review_api_zip_path}) document-review-api.js
-      rm document-review-api.js
+      cd /workspaces/cloud-project-management-tool/src/lambdas/document-review-api
+      zip -r ../document-review-api.zip lambda_function.py
     EOT
     interpreter = ["bash", "-c"]
   }
@@ -245,13 +242,13 @@ resource "aws_lambda_function" "jwt_authorizer" {
   depends_on = [null_resource.create_jwt_authorizer_zip]
 }
 
-# Document Review API Lambda Function
+# Document Review API Lambda Function - FIXED FOR PYTHON
 resource "aws_lambda_function" "document_review_api" {
   filename      = var.document_review_api_zip_path
   function_name = "${var.project_name}-${var.environment}-document-review-api"
   role          = aws_iam_role.lambda_role.arn
-  handler       = "document-review-api.handler"
-  runtime       = "nodejs20.x"
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.9"
   timeout       = 30
   memory_size   = 512
 
@@ -260,7 +257,7 @@ resource "aws_lambda_function" "document_review_api" {
   environment {
     variables = {
       DYNAMODB_TABLE_NAME  = var.dynamodb_table_name
-      EVENTBRIDGE_BUS_NAME = var.eventbridge_bus_name
+      EVENTBRIDGE_BUS_NAME = var.eventbridge_bus_name != "" ? var.eventbridge_bus_name : "default"
       ENVIRONMENT         = var.environment
     }
   }

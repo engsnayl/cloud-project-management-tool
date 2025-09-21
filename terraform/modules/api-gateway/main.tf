@@ -33,12 +33,20 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_method.projects_id_put,
     aws_api_gateway_method.projects_id_delete,
     aws_api_gateway_method.documents_post,
+    aws_api_gateway_method.document_suggestions_pending_get,
+    aws_api_gateway_method.document_suggestions_id_get,
+    aws_api_gateway_method.document_suggestions_approve_post,
+    aws_api_gateway_method.document_suggestions_reject_post,
     aws_api_gateway_method.options_health,
     aws_api_gateway_method.options_requirements,
     aws_api_gateway_method.options_projects,
     aws_api_gateway_method.options_actions,
     aws_api_gateway_method.options_analytics_dashboard,
-    aws_api_gateway_method.options_actions_id
+    aws_api_gateway_method.options_actions_id,
+    aws_api_gateway_method.options_document_suggestions_pending,
+    aws_api_gateway_method.options_document_suggestions_id,
+    aws_api_gateway_method.options_document_suggestions_approve,
+    aws_api_gateway_method.options_document_suggestions_reject
   ]
 
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -60,6 +68,11 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_resource.actions_id.id,
       aws_api_gateway_resource.projects_id.id,
       aws_api_gateway_resource.documents.id,
+      aws_api_gateway_resource.document_suggestions.id,
+      aws_api_gateway_resource.document_suggestions_pending.id,
+      aws_api_gateway_resource.document_suggestions_id.id,
+      aws_api_gateway_resource.document_suggestions_approve.id,
+      aws_api_gateway_resource.document_suggestions_reject.id,
       aws_api_gateway_method.health_get.id,
       aws_api_gateway_method.requirements_get.id,
       aws_api_gateway_method.requirements_post.id,
@@ -70,6 +83,9 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_method.analytics_dashboard_get.id,
       aws_api_gateway_method.actions_id_put.id,
       aws_api_gateway_method.actions_id_delete.id,
+      aws_api_gateway_method.document_suggestions_pending_get.id,
+      aws_api_gateway_method.document_suggestions_approve_post.id,
+      aws_api_gateway_method.document_suggestions_reject_post.id,
     ]))
   }
 }
@@ -179,6 +195,41 @@ resource "aws_api_gateway_resource" "documents" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   parent_id   = aws_api_gateway_resource.v1.id
   path_part   = "documents"
+}
+
+# Create /api/v1/document-suggestions resource
+resource "aws_api_gateway_resource" "document_suggestions" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.v1.id
+  path_part   = "document-suggestions"
+}
+
+# Create /api/v1/document-suggestions/pending resource
+resource "aws_api_gateway_resource" "document_suggestions_pending" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.document_suggestions.id
+  path_part   = "pending"
+}
+
+# Create /api/v1/document-suggestions/{suggestionId} resource
+resource "aws_api_gateway_resource" "document_suggestions_id" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.document_suggestions.id
+  path_part   = "{suggestionId}"
+}
+
+# Create /api/v1/document-suggestions/{suggestionId}/approve resource
+resource "aws_api_gateway_resource" "document_suggestions_approve" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.document_suggestions_id.id
+  path_part   = "approve"
+}
+
+# Create /api/v1/document-suggestions/{suggestionId}/reject resource
+resource "aws_api_gateway_resource" "document_suggestions_reject" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.document_suggestions_id.id
+  path_part   = "reject"
 }
 
 # Lambda Authorizer
@@ -508,6 +559,79 @@ resource "aws_api_gateway_integration" "documents_post" {
   uri                     = var.api_handler_invoke_arn
 }
 
+# Document Suggestions endpoints
+# GET /api/v1/document-suggestions/pending
+resource "aws_api_gateway_method" "document_suggestions_pending_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_pending.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "document_suggestions_pending_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_pending.id
+  http_method = aws_api_gateway_method.document_suggestions_pending_get.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.document_review_api_invoke_arn
+}
+
+# GET /api/v1/document-suggestions/{suggestionId}
+resource "aws_api_gateway_method" "document_suggestions_id_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_id.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "document_suggestions_id_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_id.id
+  http_method = aws_api_gateway_method.document_suggestions_id_get.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.document_review_api_invoke_arn
+}
+
+# POST /api/v1/document-suggestions/{suggestionId}/approve
+resource "aws_api_gateway_method" "document_suggestions_approve_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_approve.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "document_suggestions_approve_post" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_approve.id
+  http_method = aws_api_gateway_method.document_suggestions_approve_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.document_review_api_invoke_arn
+}
+
+# POST /api/v1/document-suggestions/{suggestionId}/reject
+resource "aws_api_gateway_method" "document_suggestions_reject_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_reject.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "document_suggestions_reject_post" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_reject.id
+  http_method = aws_api_gateway_method.document_suggestions_reject_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.document_review_api_invoke_arn
+}
+
 # CORS OPTIONS methods
 resource "aws_api_gateway_method" "options_health" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -547,6 +671,34 @@ resource "aws_api_gateway_method" "options_analytics_dashboard" {
 resource "aws_api_gateway_method" "options_actions_id" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_method" "options_document_suggestions_pending" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_pending.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_method" "options_document_suggestions_id" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_method" "options_document_suggestions_approve" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_approve.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_method" "options_document_suggestions_reject" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.document_suggestions_reject.id
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
@@ -621,6 +773,58 @@ resource "aws_api_gateway_integration" "options_actions_id" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   resource_id = aws_api_gateway_resource.actions_id.id
   http_method = aws_api_gateway_method.options_actions_id.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_integration" "options_document_suggestions_pending" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_pending.id
+  http_method = aws_api_gateway_method.options_document_suggestions_pending.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_integration" "options_document_suggestions_id" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_id.id
+  http_method = aws_api_gateway_method.options_document_suggestions_id.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_integration" "options_document_suggestions_approve" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_approve.id
+  http_method = aws_api_gateway_method.options_document_suggestions_approve.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_integration" "options_document_suggestions_reject" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_reject.id
+  http_method = aws_api_gateway_method.options_document_suggestions_reject.http_method
   type        = "MOCK"
 
   request_templates = {
@@ -709,6 +913,58 @@ resource "aws_api_gateway_method_response" "options_actions_id" {
   }
 }
 
+resource "aws_api_gateway_method_response" "options_document_suggestions_pending" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_pending.id
+  http_method = aws_api_gateway_method.options_document_suggestions_pending.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "options_document_suggestions_id" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_id.id
+  http_method = aws_api_gateway_method.options_document_suggestions_id.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "options_document_suggestions_approve" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_approve.id
+  http_method = aws_api_gateway_method.options_document_suggestions_approve.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "options_document_suggestions_reject" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_reject.id
+  http_method = aws_api_gateway_method.options_document_suggestions_reject.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
 # CORS integration responses
 resource "aws_api_gateway_integration_response" "options_health" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -788,11 +1044,72 @@ resource "aws_api_gateway_integration_response" "options_actions_id" {
   }
 }
 
+resource "aws_api_gateway_integration_response" "options_document_suggestions_pending" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_pending.id
+  http_method = aws_api_gateway_method.options_document_suggestions_pending.http_method
+  status_code = aws_api_gateway_method_response.options_document_suggestions_pending.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "options_document_suggestions_id" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_id.id
+  http_method = aws_api_gateway_method.options_document_suggestions_id.http_method
+  status_code = aws_api_gateway_method_response.options_document_suggestions_id.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "options_document_suggestions_approve" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_approve.id
+  http_method = aws_api_gateway_method.options_document_suggestions_approve.http_method
+  status_code = aws_api_gateway_method_response.options_document_suggestions_approve.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "options_document_suggestions_reject" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.document_suggestions_reject.id
+  http_method = aws_api_gateway_method.options_document_suggestions_reject.http_method
+  status_code = aws_api_gateway_method_response.options_document_suggestions_reject.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # Lambda permissions for API Gateway
 resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
   function_name = var.api_handler_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
+# Lambda permission for document review API
+resource "aws_lambda_permission" "document_review_api_gateway" {
+  statement_id  = "AllowExecutionFromAPIGatewayDocumentReview"
+  action        = "lambda:InvokeFunction"
+  function_name = var.document_review_api_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }

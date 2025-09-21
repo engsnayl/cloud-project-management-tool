@@ -36,24 +36,25 @@ resource "aws_iam_role" "eventbridge_role" {
 
 # IAM Policy for EventBridge to invoke Step Functions and Lambda - FIXED
 resource "aws_iam_role_policy" "eventbridge_policy" {
+  count = var.api_handler_function_arn != "" || var.document_processor_function_arn != "" || var.requirement_approval_workflow_arn != "" || var.document_processing_workflow_arn != "" ? 1 : 0
   name = "${var.project_name}-${var.environment}-eventbridge-policy"
   role = aws_iam_role.eventbridge_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = concat(
-      [
+      var.api_handler_function_arn != "" || var.document_processor_function_arn != "" ? [
         {
           Effect = "Allow"
           Action = [
             "lambda:InvokeFunction"
           ]
-          Resource = [
-            var.api_handler_function_arn,
-            var.document_processor_function_arn
-          ]
+          Resource = compact([
+            var.api_handler_function_arn != "" ? var.api_handler_function_arn : null,
+            var.document_processor_function_arn != "" ? var.document_processor_function_arn : null
+          ])
         }
-      ],
+      ] : [],
       var.requirement_approval_workflow_arn != "" || var.document_processing_workflow_arn != "" ? [
         {
           Effect = "Allow"
@@ -195,8 +196,9 @@ resource "aws_cloudwatch_event_rule" "requirement_status_changed" {
   })
 }
 
-# EventBridge Target: Status Changed -> Lambda Notification
+# EventBridge Target: Status Changed -> Lambda Notification - FIXED TO BE CONDITIONAL
 resource "aws_cloudwatch_event_target" "requirement_status_changed_target" {
+  count          = var.api_handler_function_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.requirement_status_changed.name
   target_id      = "RequirementStatusChangedTarget"
   arn            = var.api_handler_function_arn
@@ -245,8 +247,9 @@ resource "aws_cloudwatch_event_rule" "workflow_completed" {
   })
 }
 
-# EventBridge Target: Workflow Completed -> Analytics Update
+# EventBridge Target: Workflow Completed -> Analytics Update - FIXED TO BE CONDITIONAL
 resource "aws_cloudwatch_event_target" "workflow_completed_target" {
+  count          = var.api_handler_function_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.workflow_completed.name
   target_id      = "WorkflowCompletedTarget"
   arn            = var.api_handler_function_arn

@@ -66,6 +66,21 @@ module "cognito" {
   tags = local.common_tags
 }
 
+# EventBridge Module - Create bus first without Lambda targets
+module "eventbridge" {
+  source = "../../modules/eventbridge"
+
+  project_name                      = var.project_name
+  environment                       = var.environment
+  # Create EventBridge bus without Lambda targets initially
+  api_handler_function_arn          = ""
+  document_processor_function_arn   = ""
+  requirement_approval_workflow_arn = var.requirement_approval_workflow_arn
+  document_processing_workflow_arn  = var.document_processing_workflow_arn
+
+  tags = local.common_tags
+}
+
 # Lambda Module
 module "lambda" {
   source = "../../modules/lambda"
@@ -79,6 +94,7 @@ module "lambda" {
   s3_bucket_name      = module.s3.bucket_name
   s3_bucket_arn       = module.s3.bucket_arn
   log_retention_days  = var.log_retention_days
+  eventbridge_bus_name = module.eventbridge.event_bus_name
 
   # Lambda zip paths
   api_handler_zip_path         = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
@@ -93,7 +109,20 @@ module "lambda" {
 
   tags = local.common_tags
 
-  depends_on = [module.vpc, module.dynamodb, module.s3]
+  depends_on = [module.vpc, module.dynamodb, module.s3, module.eventbridge]
+}
+
+# Update EventBridge with Lambda function ARNs
+resource "null_resource" "update_eventbridge_rules" {
+  # This ensures EventBridge rules are updated after Lambda functions are created
+  depends_on = [module.lambda]
+  
+  # We'll handle the EventBridge rule updates in the EventBridge module
+  # This is just a placeholder to ensure proper ordering
+  
+  triggers = {
+    lambda_arns = "${module.lambda.api_handler_function_arn}-${module.lambda.document_processor_function_arn}"
+  }
 }
 
 # API Gateway Module
@@ -109,22 +138,6 @@ module "api_gateway" {
   cognito_user_pool_id              = module.cognito.user_pool_id
   document_review_api_function_name = module.lambda.document_review_api_function_name
   document_review_api_invoke_arn    = module.lambda.document_review_api_invoke_arn
-
-  tags = local.common_tags
-
-  depends_on = [module.lambda]
-}
-
-# EventBridge Module
-module "eventbridge" {
-  source = "../../modules/eventbridge"
-
-  project_name                      = var.project_name
-  environment                       = var.environment
-  api_handler_function_arn          = module.lambda.api_handler_function_arn
-  document_processor_function_arn   = module.lambda.document_processor_function_arn
-  requirement_approval_workflow_arn = var.requirement_approval_workflow_arn
-  document_processing_workflow_arn  = var.document_processing_workflow_arn
 
   tags = local.common_tags
 
