@@ -1,4 +1,4 @@
-#/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer
+#/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py
 
 import json
 import os
@@ -28,7 +28,7 @@ def get_jwks():
         jwks_url = f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}/.well-known/jwks.json'
         response = requests.get(jwks_url)
         _jwks_cache = response.json()
-    
+        
     return _jwks_cache
 
 def get_signing_key(token):
@@ -42,9 +42,9 @@ def get_signing_key(token):
         for key in jwks['keys']:
             if key['kid'] == kid:
                 return RSAAlgorithm.from_jwk(json.dumps(key))
-        
+                
         raise Exception(f'Unable to find a signing key that matches: {kid}')
-    
+        
     except Exception as e:
         logger.error(f'Error getting signing key: {str(e)}')
         raise
@@ -55,7 +55,7 @@ def validate_jwt_token(token):
         # Remove Bearer prefix if present
         if token.startswith('Bearer '):
             token = token[7:]
-        
+            
         # Get signing key
         signing_key = get_signing_key(token)
         
@@ -71,9 +71,9 @@ def validate_jwt_token(token):
         # Additional validations
         if decoded_token.get('token_use') != 'access':
             raise Exception('Token is not an access token')
-        
+            
         return decoded_token
-    
+        
     except jwt.ExpiredSignatureError:
         logger.error('Token has expired')
         raise Exception('Token has expired')
@@ -102,10 +102,10 @@ def generate_policy(principal_id, effect, resource, context=None):
             ]
         }
         auth_response['policyDocument'] = policy_document
-    
+        
     if context:
         auth_response['context'] = context
-    
+        
     return auth_response
 
 def lambda_handler(event, context):
@@ -120,12 +120,12 @@ def lambda_handler(event, context):
         if not token:
             logger.error('No authorization token provided')
             raise Exception('Unauthorized')
-        
+            
         # Validate token format (Bearer <token>)
         if not re.match(r'^Bearer [A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$', token):
             logger.error('Invalid token format')
             raise Exception('Unauthorized')
-        
+            
         # Validate JWT token
         decoded_token = validate_jwt_token(token)
         
@@ -148,7 +148,7 @@ def lambda_handler(event, context):
         )
         
         return policy
-    
+        
     except Exception as e:
         logger.error(f'Authorization failed: {str(e)}')
         # Return deny policy for any error

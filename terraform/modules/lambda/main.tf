@@ -66,14 +66,6 @@ resource "aws_iam_role_policy" "lambda_custom" {
       {
         Effect = "Allow"
         Action = [
-          "textract:DetectDocumentText",
-          "textract:AnalyzeDocument"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
           "events:PutEvents"
         ]
         Resource = "*"
@@ -92,26 +84,10 @@ resource "null_resource" "create_api_handler_zip" {
     command     = <<-EOT
       mkdir -p $(dirname ${var.api_handler_zip_path})
       cd $(dirname ${var.api_handler_zip_path})
-      echo 'def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "API Handler"}' > lambda_function.py
+      if [ ! -f lambda_function.py ]; then
+        echo 'def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "API Handler"}' > lambda_function.py
+      fi
       zip -r $(basename ${var.api_handler_zip_path}) lambda_function.py
-      rm lambda_function.py
-    EOT
-    interpreter = ["bash", "-c"]
-  }
-}
-
-resource "null_resource" "create_document_processor_zip" {
-  triggers = {
-    zip_path = var.document_processor_zip_path
-  }
-
-  provisioner "local-exec" {
-    command     = <<-EOT
-      mkdir -p $(dirname ${var.document_processor_zip_path})
-      cd $(dirname ${var.document_processor_zip_path})
-      echo 'def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Document Processor"}' > lambda_function.py
-      zip -r $(basename ${var.document_processor_zip_path}) lambda_function.py
-      rm lambda_function.py
     EOT
     interpreter = ["bash", "-c"]
   }
@@ -120,15 +96,58 @@ resource "null_resource" "create_document_processor_zip" {
 resource "null_resource" "create_jwt_authorizer_zip" {
   triggers = {
     zip_path = var.jwt_authorizer_zip_path
+    source_hash = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") : ""
+    requirements_hash = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt") : ""
   }
 
   provisioner "local-exec" {
     command     = <<-EOT
-      mkdir -p $(dirname ${var.jwt_authorizer_zip_path})
-      cd $(dirname ${var.jwt_authorizer_zip_path})
-      echo 'def lambda_handler(event, context):\n    return {"principalId": "user", "policyDocument": {"Version": "2012-10-17", "Statement": [{"Action": "execute-api:Invoke", "Effect": "Allow", "Resource": event["methodArn"]}]}}' > lambda_function.py
-      zip -r $(basename ${var.jwt_authorizer_zip_path}) lambda_function.py
-      rm lambda_function.py
+      set -e
+      SOURCE_DIR="/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer"
+      BUILD_DIR="/tmp/jwt-authorizer-build-$$"
+      ZIP_PATH="/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda-deployment.zip"
+      
+      # Check if source files exist
+      if [ -f "$SOURCE_DIR/lambda_function.py" ] && [ -f "$SOURCE_DIR/requirements.txt" ]; then
+        echo "Building JWT authorizer with dependencies..."
+        
+        # Create temporary build directory
+        mkdir -p "$BUILD_DIR"
+        
+        # Copy source files
+        cp "$SOURCE_DIR/lambda_function.py" "$BUILD_DIR/"
+        cp "$SOURCE_DIR/requirements.txt" "$BUILD_DIR/"
+        
+        # Install dependencies for Linux Lambda environment
+        cd "$BUILD_DIR"
+        pip install -r requirements.txt -t . --no-deps
+        
+        # Create zip excluding unnecessary files
+        zip -r "$ZIP_PATH" . -x "*.pyc" "__pycache__/*" "*.dist-info/RECORD" "*.dist-info/INSTALLER" "*.egg-info/*"
+        
+        echo "JWT authorizer zip created with dependencies"
+      else
+        echo "Source files not found, creating basic JWT authorizer..."
+        # Fallback: create basic authorizer
+        cd /workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer
+        echo 'def lambda_handler(event, context):
+    return {
+        "principalId": "user", 
+        "policyDocument": {
+            "Version": "2012-10-17", 
+            "Statement": [{
+                "Action": "execute-api:Invoke", 
+                "Effect": "Allow", 
+                "Resource": event.get("methodArn", "")
+            }]
+        }
+    }' > lambda_function.py
+        zip lambda-deployment.zip lambda_function.py
+        rm lambda_function.py
+      fi
+      
+      # Cleanup build directory
+      rm -rf "$BUILD_DIR"
     EOT
     interpreter = ["bash", "-c"]
   }
@@ -142,44 +161,16 @@ resource "null_resource" "create_document_review_api_zip" {
   provisioner "local-exec" {
     command     = <<-EOT
       cd /workspaces/cloud-project-management-tool/src/lambdas/document-review-api
-      zip -r ../document-review-api.zip lambda_function.py
+      if [ -f lambda_function.py ]; then
+        zip -r ../document-review-api.zip lambda_function.py
+      else
+        echo 'def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Document Review API"}' > lambda_function.py
+        zip -r ../document-review-api.zip lambda_function.py
+        rm lambda_function.py
+      fi
     EOT
     interpreter = ["bash", "-c"]
   }
-}
-
-# Document Processor Lambda Function
-resource "aws_lambda_function" "document_processor" {
-  filename      = var.document_processor_zip_path
-  function_name = "${var.project_name}-${var.environment}-document-processor"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.9"
-  timeout       = 60
-
-  depends_on = [null_resource.create_document_processor_zip]
-
-  environment {
-    variables = {
-      DYNAMODB_TABLE = var.dynamodb_table_name
-      S3_BUCKET      = var.s3_bucket_name
-      ENVIRONMENT    = var.environment
-    }
-  }
-
-  dynamic "vpc_config" {
-    for_each = var.enable_vpc_access ? [1] : []
-    content {
-      subnet_ids         = var.private_subnet_ids
-      security_group_ids = [aws_security_group.lambda[0].id]
-    }
-  }
-
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-${var.environment}-document-processor"
-    Environment = var.environment
-    Purpose     = "document-processing"
-  })
 }
 
 # API Handler Lambda Function
@@ -242,7 +233,7 @@ resource "aws_lambda_function" "jwt_authorizer" {
   depends_on = [null_resource.create_jwt_authorizer_zip]
 }
 
-# Document Review API Lambda Function - FIXED FOR PYTHON
+# Document Review API Lambda Function
 resource "aws_lambda_function" "document_review_api" {
   filename      = var.document_review_api_zip_path
   function_name = "${var.project_name}-${var.environment}-document-review-api"
@@ -276,16 +267,6 @@ resource "aws_cloudwatch_log_group" "api_handler" {
 
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-api-handler-logs"
-    Environment = var.environment
-  })
-}
-
-resource "aws_cloudwatch_log_group" "document_processor" {
-  name              = "/aws/lambda/${aws_lambda_function.document_processor.function_name}"
-  retention_in_days = var.log_retention_days
-
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-${var.environment}-document-processor-logs"
     Environment = var.environment
   })
 }
@@ -328,13 +309,4 @@ resource "aws_security_group" "lambda" {
     Name        = "${var.project_name}-${var.environment}-lambda-sg"
     Environment = var.environment
   })
-}
-
-# S3 permission for Lambda (for S3 event triggers)
-resource "aws_lambda_permission" "s3_invoke" {
-  statement_id  = "AllowExecutionFromS3Bucket"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.document_processor.function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = var.s3_bucket_arn
 }

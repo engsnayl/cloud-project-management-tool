@@ -46,14 +46,9 @@ variable "enable_vpc_access" {
   default     = false
 }
 
-# Lambda deployment packages
+# Lambda deployment packages - REMOVED document_processor_zip_path
 variable "api_handler_zip_path" {
   description = "Path to the API handler Lambda deployment package"
-  type        = string
-}
-
-variable "document_processor_zip_path" {
-  description = "Path to the document processor Lambda deployment package"
   type        = string
 }
 

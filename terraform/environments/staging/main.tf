@@ -1,4 +1,4 @@
-# terraform/environments/staging/main.tf
+# terraform/environments/dev/main.tf
 
 # Common locals for the environment
 locals {
@@ -72,7 +72,7 @@ module "eventbridge" {
 
   project_name                      = var.project_name
   environment                       = var.environment
-  # Create EventBridge bus without Lambda targets initially
+  # EventBridge now points to ECS container, not Lambda
   api_handler_function_arn          = ""
   document_processor_function_arn   = ""
   requirement_approval_workflow_arn = var.requirement_approval_workflow_arn
@@ -81,7 +81,7 @@ module "eventbridge" {
   tags = local.common_tags
 }
 
-# Lambda Module
+# Lambda Module - DOCUMENT PROCESSOR REMOVED (Container handles it)
 module "lambda" {
   source = "../../modules/lambda"
 
@@ -96,33 +96,20 @@ module "lambda" {
   log_retention_days  = var.log_retention_days
   eventbridge_bus_name = module.eventbridge.event_bus_name
 
-  # Lambda zip paths
+  # Lambda zip paths - ONLY for the functions we actually need
   api_handler_zip_path         = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
-  document_processor_zip_path  = "${path.root}/../../../src/lambdas/document-processor/lambda-deployment.zip"
   jwt_authorizer_zip_path      = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
   document_review_api_zip_path = "${path.root}/../../../src/lambdas/document-review-api.zip"
 
-  # Cognito integration (initially empty)
-  cognito_user_pool_id      = ""
-  cognito_app_client_id     = ""
+  # Pass Cognito info to Lambda
+  cognito_user_pool_id      = module.cognito.user_pool_id
+  cognito_app_client_id     = module.cognito.user_pool_client_id
+  # API Gateway execution ARN will be set after API Gateway is created
   api_gateway_execution_arn = ""
 
   tags = local.common_tags
 
-  depends_on = [module.vpc, module.dynamodb, module.s3, module.eventbridge]
-}
-
-# Update EventBridge with Lambda function ARNs
-resource "null_resource" "update_eventbridge_rules" {
-  # This ensures EventBridge rules are updated after Lambda functions are created
-  depends_on = [module.lambda]
-  
-  # We'll handle the EventBridge rule updates in the EventBridge module
-  # This is just a placeholder to ensure proper ordering
-  
-  triggers = {
-    lambda_arns = "${module.lambda.api_handler_function_arn}-${module.lambda.document_processor_function_arn}"
-  }
+  depends_on = [module.vpc, module.dynamodb, module.s3, module.eventbridge, module.cognito]
 }
 
 # API Gateway Module
@@ -144,6 +131,10 @@ module "api_gateway" {
   depends_on = [module.lambda]
 }
 
+# Update Lambda with API Gateway execution ARN after creation
+# Note: Removed this resource as the Lambda environment variables are already set correctly
+# in the Lambda module and this was causing AWS CLI JSON parsing issues
+
 # CloudWatch Monitoring Module
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
@@ -152,7 +143,8 @@ module "cloudwatch" {
   environment                      = var.environment
   api_gateway_name                 = module.api_gateway.api_gateway_name
   api_handler_function_name        = module.lambda.api_handler_function_name
-  document_processor_function_name = module.lambda.document_processor_function_name
+  # REMOVED document_processor_function_name - Container handles document processing
+  document_processor_function_name = "CONTAINER"  # Indicates container handles this
   dynamodb_table_name              = module.dynamodb.table_name
   s3_bucket_name                   = module.s3.bucket_name
   alert_email                      = var.alert_email
