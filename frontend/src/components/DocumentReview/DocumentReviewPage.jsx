@@ -19,27 +19,29 @@ const DocumentReviewPage = () => {
   const [editingAction, setEditingAction] = useState(null);
   const queryClient = useQueryClient();
 
-  // Fetch pending document suggestions using the correct API method
-  const { data: suggestionsResponse, isLoading, error } = useQuery(
+  // Fetch pending document suggestions - corrected for your API service structure
+  const { data: suggestionsData, isLoading, error } = useQuery(
     'pendingSuggestions',
     () => apiService.documentSuggestions.getPending(),
     {
-      refetchInterval: 30000, // Refresh every 30 seconds
+      refetchInterval: 30000,
       onError: (error) => {
         console.error('Failed to fetch suggestions:', error);
+      },
+      onSuccess: (data) => {
+        console.log('Successfully fetched suggestions:', data);
       }
     }
   );
 
-  // Extract suggestions from the response - handle both array and object response formats
+  // Extract suggestions from the response - handle array format from your API
   const suggestions = React.useMemo(() => {
-    if (!suggestionsResponse?.data) return [];
+    if (!suggestionsData) return [];
     
-    const responseData = suggestionsResponse.data;
-    
-    // Handle array of suggestion objects
-    if (Array.isArray(responseData)) {
-      return responseData.flatMap(doc => 
+    // Your API returns an array of suggestion objects
+    // Each object has: suggestionId, document_key, suggestions array, etc.
+    if (Array.isArray(suggestionsData)) {
+      return suggestionsData.flatMap(doc => 
         doc.suggestions?.map(suggestion => ({
           ...suggestion,
           documentId: doc.suggestionId,
@@ -49,18 +51,25 @@ const DocumentReviewPage = () => {
       );
     }
     
-    // Handle single suggestion object
-    if (responseData.suggestions) {
-      return responseData.suggestions.map(suggestion => ({
+    // Handle single suggestion object case
+    if (suggestionsData.suggestions) {
+      return suggestionsData.suggestions.map(suggestion => ({
         ...suggestion,
-        documentId: responseData.suggestionId,
-        document_key: responseData.document_key,
-        created_at: responseData.created_at
+        documentId: suggestionsData.suggestionId,
+        document_key: suggestionsData.document_key,
+        created_at: suggestionsData.created_at
       }));
     }
     
     return [];
-  }, [suggestionsResponse]);
+  }, [suggestionsData]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('DocumentReviewPage mounted');
+    console.log('suggestionsData:', suggestionsData);
+    console.log('processed suggestions:', suggestions);
+  }, [suggestionsData, suggestions]);
 
   // Approve suggestion mutation
   const approveMutation = useMutation(
@@ -163,6 +172,9 @@ const DocumentReviewPage = () => {
                 <p className="text-red-700 mt-1">
                   {error.message || 'Failed to load document suggestions. Please try again.'}
                 </p>
+                <pre className="text-xs text-red-600 mt-2 bg-red-100 p-2 rounded overflow-auto">
+                  {JSON.stringify(error, null, 2)}
+                </pre>
                 <button 
                   onClick={() => queryClient.invalidateQueries('pendingSuggestions')}
                   className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -186,6 +198,26 @@ const DocumentReviewPage = () => {
           <p className="mt-2 text-gray-600">
             Review and approve extracted action items from processed documents
           </p>
+        </div>
+
+        {/* Debug Information */}
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm">
+          <strong>Debug Info:</strong>
+          <br />
+          Loading: {isLoading ? 'Yes' : 'No'}
+          <br />
+          Raw Data: {suggestionsData ? 'Loaded' : 'None'}
+          <br />
+          Processed Suggestions: {suggestions.length}
+          <br />
+          {suggestionsData && (
+            <details className="mt-2">
+              <summary>Raw API Response</summary>
+              <pre className="mt-2 text-xs bg-white p-2 rounded overflow-auto max-h-40">
+                {JSON.stringify(suggestionsData, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -297,74 +329,6 @@ const DocumentReviewPage = () => {
                       </p>
                     </div>
                   </div>
-
-                  {/* Edit Form */}
-                  {editingAction && selectedSuggestion?.index === suggestion.index && (
-                    <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <h4 className="text-sm font-medium text-blue-900 mb-3">Edit Action Details</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Title
-                          </label>
-                          <input
-                            type="text"
-                            value={editingAction.title}
-                            onChange={(e) => setEditingAction(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Priority
-                          </label>
-                          <select
-                            value={editingAction.priority}
-                            onChange={(e) => setEditingAction(prev => ({ ...prev, priority: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="LOW">Low</option>
-                            <option value="MEDIUM">Medium</option>
-                            <option value="HIGH">High</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Owner
-                          </label>
-                          <input
-                            type="text"
-                            value={editingAction.owner}
-                            onChange={(e) => setEditingAction(prev => ({ ...prev, owner: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Assign to..."
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Deadline
-                          </label>
-                          <input
-                            type="date"
-                            value={editingAction.deadline}
-                            onChange={(e) => setEditingAction(prev => ({ ...prev, deadline: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Description
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={editingAction.description}
-                          onChange={(e) => setEditingAction(prev => ({ ...prev, description: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Action Buttons */}
                   <div className="flex items-center justify-end space-x-3">
