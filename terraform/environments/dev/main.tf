@@ -211,17 +211,18 @@ module "email_notifications" {
 module "frontend_hosting" {
   source = "../../modules/frontend-hosting"
 
-  providers = {
-    aws.us_east_1 = aws.us_east_1
-  }
-
   project_name    = var.project_name
   environment     = var.environment
   domain_name     = var.dashboard_url_hostname
   zone_id         = data.aws_route53_zone.main.zone_id
   api_gateway_url = module.api_gateway.api_gateway_url
+  tags            = local.common_tags
 
-  tags = local.common_tags
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  depends_on = [module.api_gateway]
 }
 
 # ECS Module for Document Processing
