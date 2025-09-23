@@ -32,6 +32,12 @@ api.interceptors.response.use(
 );
 
 const apiService = {
+  // Raw API calls for components that need direct access
+  get: (url) => api.get(url).then(response => response.data),
+  post: (url, data) => api.post(url, data).then(response => response.data),
+  put: (url, data) => api.put(url, data).then(response => response.data),
+  delete: (url) => api.delete(url).then(response => response.data),
+
   // Actions API
   actions: {
     getAll: (params = {}) => {
@@ -58,7 +64,7 @@ const apiService = {
     delete: (projectId) => api.delete(`/projects/${projectId}`).then(response => response.data),
   },
 
-  // Documents API
+  // Documents API - Upload to S3
   documents: {
     upload: (formData) => api.post('/documents', formData, {
       headers: {
@@ -67,7 +73,14 @@ const apiService = {
     }).then(response => response.data),
     getProcessingStatus: (documentId) => api.get(`/documents/${documentId}/status`).then(response => response.data),
     getExtractedText: (documentId) => api.get(`/documents/${documentId}/extracted-text`).then(response => response.data),
-    convertToActions: (documentId) => api.post(`/documents/${documentId}/convert-to-actions`).then(response => response.data),
+  },
+
+  // Document Suggestions API - Your working backend endpoints
+  documentSuggestions: {
+    getPending: () => api.get('/document-suggestions/pending').then(response => response.data),
+    getById: (suggestionId) => api.get(`/document-suggestions/${suggestionId}`).then(response => response.data),
+    approve: (suggestionId, actionData) => api.post(`/document-suggestions/${suggestionId}/approve`, actionData).then(response => response.data),
+    reject: (suggestionId, reason) => api.post(`/document-suggestions/${suggestionId}/reject`, { reason }).then(response => response.data),
   },
 
   // Workflows API
