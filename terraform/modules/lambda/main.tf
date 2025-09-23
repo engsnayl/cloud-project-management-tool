@@ -95,8 +95,8 @@ resource "null_resource" "create_api_handler_zip" {
 
 resource "null_resource" "create_jwt_authorizer_zip" {
   triggers = {
-    zip_path = var.jwt_authorizer_zip_path
-    source_hash = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") : ""
+    zip_path          = var.jwt_authorizer_zip_path
+    source_hash       = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") : ""
     requirements_hash = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt") : ""
   }
 
@@ -249,7 +249,7 @@ resource "aws_lambda_function" "document_review_api" {
     variables = {
       DYNAMODB_TABLE_NAME  = var.dynamodb_table_name
       EVENTBRIDGE_BUS_NAME = var.eventbridge_bus_name != "" ? var.eventbridge_bus_name : "default"
-      ENVIRONMENT         = var.environment
+      ENVIRONMENT          = var.environment
     }
   }
 

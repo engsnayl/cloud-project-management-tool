@@ -70,8 +70,8 @@ module "cognito" {
 module "eventbridge" {
   source = "../../modules/eventbridge"
 
-  project_name                      = var.project_name
-  environment                       = var.environment
+  project_name = var.project_name
+  environment  = var.environment
   # EventBridge now points to ECS container, not Lambda
   api_handler_function_arn          = ""
   document_processor_function_arn   = ""
@@ -85,15 +85,15 @@ module "eventbridge" {
 module "lambda" {
   source = "../../modules/lambda"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  vpc_id              = module.vpc.vpc_id
-  private_subnet_ids  = module.vpc.private_subnet_ids
-  dynamodb_table_name = module.dynamodb.table_name
-  dynamodb_table_arn  = module.dynamodb.table_arn
-  s3_bucket_name      = module.s3.bucket_name
-  s3_bucket_arn       = module.s3.bucket_arn
-  log_retention_days  = var.log_retention_days
+  project_name         = var.project_name
+  environment          = var.environment
+  vpc_id               = module.vpc.vpc_id
+  private_subnet_ids   = module.vpc.private_subnet_ids
+  dynamodb_table_name  = module.dynamodb.table_name
+  dynamodb_table_arn   = module.dynamodb.table_arn
+  s3_bucket_name       = module.s3.bucket_name
+  s3_bucket_arn        = module.s3.bucket_arn
+  log_retention_days   = var.log_retention_days
   eventbridge_bus_name = module.eventbridge.event_bus_name
 
   # Lambda zip paths - ONLY for the functions we actually need
@@ -102,8 +102,8 @@ module "lambda" {
   document_review_api_zip_path = "${path.root}/../../../src/lambdas/document-review-api.zip"
 
   # Pass Cognito info to Lambda
-  cognito_user_pool_id      = module.cognito.user_pool_id
-  cognito_app_client_id     = module.cognito.user_pool_client_id
+  cognito_user_pool_id  = module.cognito.user_pool_id
+  cognito_app_client_id = module.cognito.user_pool_client_id
   # API Gateway execution ARN will be set after API Gateway is created
   api_gateway_execution_arn = ""
 
@@ -139,12 +139,12 @@ module "api_gateway" {
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
 
-  project_name                     = var.project_name
-  environment                      = var.environment
-  api_gateway_name                 = module.api_gateway.api_gateway_name
-  api_handler_function_name        = module.lambda.api_handler_function_name
+  project_name              = var.project_name
+  environment               = var.environment
+  api_gateway_name          = module.api_gateway.api_gateway_name
+  api_handler_function_name = module.lambda.api_handler_function_name
   # REMOVED document_processor_function_name - Container handles document processing
-  document_processor_function_name = "CONTAINER"  # Indicates container handles this
+  document_processor_function_name = "CONTAINER" # Indicates container handles this
   dynamodb_table_name              = module.dynamodb.table_name
   s3_bucket_name                   = module.s3.bucket_name
   alert_email                      = var.alert_email
