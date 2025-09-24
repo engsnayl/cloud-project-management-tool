@@ -349,7 +349,7 @@ def get_projects():
         
         response = table.scan(
             FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':sk_prefix': 'PROJECT#'}
+            ExpressionAttributeValues={':pk_prefix': 'PROJECT#'}
         )
         
         projects = []
@@ -410,7 +410,7 @@ def get_requirements():
     try:
         response = table.scan(
             FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':sk_prefix': 'REQUIREMENT#'}
+            ExpressionAttributeValues={':pk_prefix': 'REQUIREMENT#'}
         )
         
         requirements = []
@@ -521,7 +521,7 @@ def get_dashboard_analytics():
         # Get all projects
         projects_response = table.scan(
             FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':sk_prefix': 'PROJECT#'}
+            ExpressionAttributeValues={':pk_prefix': 'PROJECT#'}
         )
         
         projects = projects_response.get('Items', [])
