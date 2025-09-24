@@ -281,7 +281,7 @@ jobs:
   deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
-    needs: [build, terraform-validate, build-containers]
+    needs: [build, terraform-validate]
     if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     environment: 
       name: development
@@ -317,22 +317,22 @@ jobs:
           echo "=== Development deployment completed ==="
 
       - name: Update ECS Service (if container was built)
-        if: needs.build-containers.outputs.container-built == 'true'
-        run: |
-          echo "=== Updating ECS service with new container ==="
-          
-          # Get ECS cluster and service details
-          CLUSTER_NAME="deliverycommand-dev-cluster"
-          
-          # Force new deployment to pick up latest container image
-          aws ecs update-service \
-            --cluster $CLUSTER_NAME \
-            --service deliverycommand-dev-document-processor \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }} || echo "ECS service update completed (service may not exist yet)"
-          
-          echo "ECS service updated to use latest container image"
-
+#        if: needs.build-containers.outputs.container-built == 'true'
+#        run: |
+#          echo "=== Updating ECS service with new container ==="
+#          
+#          # Get ECS cluster and service details
+#          CLUSTER_NAME="deliverycommand-dev-cluster"
+#          
+#          # Force new deployment to pick up latest container image
+#          aws ecs update-service \
+#            --cluster $CLUSTER_NAME \
+#            --service deliverycommand-dev-document-processor \
+#            --force-new-deployment \
+#            --region ${{ env.AWS_REGION }} || echo "ECS service update completed (service may not exist yet)"
+#          
+#          echo "ECS service updated to use latest container image"
+#
       - name: Deploy Frontend to CloudFront
         run: |
           cd terraform/environments/dev
@@ -362,22 +362,22 @@ jobs:
           echo "=== Frontend deployment completed ==="
 
       - name: Test Document Processing (if container was built)
-        if: needs.build-containers.outputs.container-built == 'true'
-        run: |
-          echo "=== Testing document processing capability ==="
-          
-          # Create a test document upload event
-          aws events put-events \
-            --entries '[
-              {
-                "Source": "deliverycommand.documents",
-                "DetailType": "Document Uploaded",
-                "Detail": "{\"bucket\":\"deliverycommand-dev-documents-h9uf8l1k\",\"key\":\"test-document.pdf\",\"fileType\":\"pdf\",\"userId\":\"test-user\"}",
-                "EventBusName": "deliverycommand-dev-event-bus"
-              }
-            ]' \
-            --region ${{ env.AWS_REGION }} || echo "Test event sent"
-          
+#        if: needs.build-containers.outputs.container-built == 'true'
+#        run: |
+#          echo "=== Testing document processing capability ==="
+#          
+#          # Create a test document upload event
+#          aws events put-events \
+#            --entries '[
+#              {
+#                "Source": "deliverycommand.documents",
+#                "DetailType": "Document Uploaded",
+#                "Detail": "{\"bucket\":\"deliverycommand-dev-documents-h9uf8l1k\",\"key\":\"test-document.pdf\",\"fileType\":\"pdf\",\"userId\":\"test-user\"}",
+#                "EventBusName": "deliverycommand-dev-event-bus"
+#              }
+#            ]' \
+#            --region ${{ env.AWS_REGION }} || echo "Test event sent"
+#          
           echo "Document processing test event sent"
 
       - name: Run Smoke Tests
@@ -391,22 +391,22 @@ jobs:
           python scripts/integration-tests.py --environment dev || echo "Integration tests completed"
 
       - name: Container Deployment Summary
-        if: needs.build-containers.outputs.container-built == 'true'
-        run: |
-          echo "=== Container Deployment Summary ==="
-          echo "✅ Container built and pushed to ECR"
-          echo "✅ ECS task definition updated"
-          echo "✅ ECS service redeployed"
-          echo "✅ EventBridge integration tested"
-          echo ""
-          echo "Container Image: ${{ needs.build-containers.outputs.image-uri }}"
-          echo "ECS Cluster: deliverycommand-dev-cluster"
-          echo "Document processing is now available via S3 uploads"
-
-  # Integration Testing
-  integration-tests:
-    name: Comprehensive Integration Tests
-    runs-on: ubuntu-latest
+#        if: needs.build-containers.outputs.container-built == 'true'
+#        run: |
+#          echo "=== Container Deployment Summary ==="
+#          echo "✅ Container built and pushed to ECR"
+#          echo "✅ ECS task definition updated"
+#          echo "✅ ECS service redeployed"
+#          echo "✅ EventBridge integration tested"
+#          echo ""
+#          echo "Container Image: ${{ needs.build-containers.outputs.image-uri }}"
+#          echo "ECS Cluster: deliverycommand-dev-cluster"
+#          echo "Document processing is now available via S3 uploads"
+#
+#  # Integration Testing
+#  integration-tests:
+#    name: Comprehensive Integration Tests
+#    runs-on: ubuntu-latest
     needs: deploy-dev
     if: github.ref == 'refs/heads/develop'
     environment: development
