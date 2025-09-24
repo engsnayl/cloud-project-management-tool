@@ -316,7 +316,6 @@ jobs:
           terraform apply -auto-approve tfplan
           echo "=== Development deployment completed ==="
 
-#
       - name: Deploy Frontend to CloudFront
         run: |
           cd terraform/environments/dev
@@ -345,7 +344,6 @@ jobs:
             
           echo "=== Frontend deployment completed ==="
 
-
       - name: Run Smoke Tests
         run: |
           chmod +x scripts/smoke-tests.sh
@@ -356,11 +354,10 @@ jobs:
           chmod +x scripts/integration-tests.py
           python scripts/integration-tests.py --environment dev || echo "Integration tests completed"
 
-#
-#  # Integration Testing
-#  integration-tests:
-#    name: Comprehensive Integration Tests
-#    runs-on: ubuntu-latest
+  # Integration Testing
+  integration-tests:
+    name: Comprehensive Integration Tests
+    runs-on: ubuntu-latest
     needs: deploy-dev
     if: github.ref == 'refs/heads/develop'
     environment: development
