@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // API Configuration - Fixed for Vite environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev';
 
 // Create axios instance with default config
 const api = axios.create({
