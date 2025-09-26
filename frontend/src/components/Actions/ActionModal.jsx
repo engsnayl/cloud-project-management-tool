@@ -10,7 +10,7 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
     status: 'PENDING',
     owner: '',
     projectId: '',
-    deadline: '' // Added deadline field
+    deadline: ''
   });
 
   const [projects, setProjects] = useState([]);
@@ -47,7 +47,7 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
         status: action.status || 'PENDING',
         owner: action.owner || '',
         projectId: action.projectId || '',
-        deadline: action.deadline || '' // Include deadline when editing
+        deadline: action.deadline || ''
       });
     } else {
       // Reset for create mode
@@ -118,28 +118,46 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[85vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold mb-6">
             {mode === 'edit' ? 'Edit Action' : 'Create New Action'}
           </h2>
           
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Title
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
+            {/* Title and Description Row */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Owner
+                </label>
+                <input
+                  type="email"
+                  name="owner"
+                  value={formData.owner}
+                  onChange={handleChange}
+                  placeholder="owner@company.com"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
             </div>
 
-            <div className="mb-4">
+            {/* Description */}
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description
               </label>
@@ -152,7 +170,8 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Priority, Status, and Deadline Row */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Priority
@@ -185,25 +204,24 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
                   <option value="COMPLETED">Completed</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Deadline
+                </label>
+                <input
+                  type="date"
+                  name="deadline"
+                  value={formData.deadline}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner
-              </label>
-              <input
-                type="email"
-                name="owner"
-                value={formData.owner}
-                onChange={handleChange}
-                placeholder="owner@company.com"
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-
-            {/* Enhanced Project Selection */}
-            <div className="mb-4">
+            {/* Project Selection */}
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project
               </label>
@@ -252,21 +270,6 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* New Deadline Field */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Deadline
-              </label>
-              <input
-                type="date"
-                name="deadline"
-                value={formData.deadline}
-                onChange={handleChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
             </div>
 
             <div className="flex justify-end space-x-3">
