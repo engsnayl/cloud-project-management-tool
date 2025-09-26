@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev';
+
 const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -7,8 +9,33 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
     priority: 'MEDIUM',
     status: 'PENDING',
     owner: '',
-    projectId: ''
+    projectId: '',
+    deadline: '' // Added deadline field
   });
+
+  const [projects, setProjects] = useState([]);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [showNewProject, setShowNewProject] = useState(false);
+
+  // Fetch projects for dropdown
+  useEffect(() => {
+    if (isOpen) {
+      fetchProjects();
+    }
+  }, [isOpen]);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/projects`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.projects || []);
+      }
+    } catch (error) {
+      console.warn('Could not fetch projects:', error);
+      setProjects([]);
+    }
+  };
 
   // Pre-populate form when editing
   useEffect(() => {
@@ -19,7 +46,8 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
         priority: action.priority || 'MEDIUM',
         status: action.status || 'PENDING',
         owner: action.owner || '',
-        projectId: action.projectId || ''
+        projectId: action.projectId || '',
+        deadline: action.deadline || '' // Include deadline when editing
       });
     } else {
       // Reset for create mode
@@ -29,7 +57,8 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
         priority: 'MEDIUM',
         status: 'PENDING',
         owner: '',
-        projectId: ''
+        projectId: '',
+        deadline: ''
       });
     }
   }, [action, mode, isOpen]);
@@ -38,8 +67,39 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
     e.preventDefault();
     
     try {
-      await onSave(formData);
+      let finalProjectId = formData.projectId;
+      
+      // Create new project if needed
+      if (showNewProject && newProjectName.trim()) {
+        try {
+          const projectResponse = await fetch(`${API_BASE_URL}/api/v1/projects`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: newProjectName.trim(),
+              description: `Project created for action: ${formData.title}`,
+              status: 'ACTIVE'
+            })
+          });
+          
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json();
+            finalProjectId = projectData.project?.projectId || projectData.projectId;
+          }
+        } catch (error) {
+          console.warn('Could not create project:', error);
+        }
+      }
+      
+      const actionData = {
+        ...formData,
+        projectId: finalProjectId || 'miscellaneous'
+      };
+      
+      await onSave(actionData);
       onClose();
+      setShowNewProject(false);
+      setNewProjectName('');
     } catch (error) {
       console.error('Error saving action:', error);
       alert('Failed to save action. Please try again.');
@@ -142,17 +202,70 @@ const ActionModal = ({ isOpen, onClose, action, onSave, mode = 'create' }) => {
               />
             </div>
 
+            {/* Enhanced Project Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project
+              </label>
+              {!showNewProject ? (
+                <div className="flex gap-2">
+                  <select
+                    name="projectId"
+                    value={formData.projectId}
+                    onChange={handleChange}
+                    className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Project</option>
+                    <option value="miscellaneous">Miscellaneous</option>
+                    {projects.map(project => (
+                      <option key={project.projectId} value={project.projectId}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewProject(true)}
+                    className="px-3 py-2 bg-green-500 text-white text-sm rounded-md hover:bg-green-600"
+                  >
+                    + New
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <input
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="Enter new project name"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewProject(false);
+                      setNewProjectName('');
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* New Deadline Field */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project ID
+                Deadline
               </label>
               <input
-                type="text"
-                name="projectId"
-                value={formData.projectId}
+                type="date"
+                name="deadline"
+                value={formData.deadline}
                 onChange={handleChange}
-                placeholder="miscellaneous"
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
             </div>
 
