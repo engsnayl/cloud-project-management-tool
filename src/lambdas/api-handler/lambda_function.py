@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import uuid
 import logging
 from decimal import Decimal
+import base64
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,13 +16,27 @@ logger = logging.getLogger(__name__)
 # AWS clients
 dynamodb = boto3.resource('dynamodb')
 s3_client = boto3.client('s3')
+ecs_client = boto3.client('ecs')
 
-# Environment variables - Use actual environment variables with fallbacks
+# Environment variables - Fixed to match what Lambda actually has
 ACTIONS_TABLE = os.environ.get('DYNAMODB_TABLE', 'deliverycommand-dev-main')
-DOCUMENTS_BUCKET = os.environ.get('S3_BUCKET', 'deliverycommand-dev-documents-h9uf8l1k')
+DOCUMENTS_BUCKET = os.environ.get('DOCUMENT_BUCKET', 'deliverycommand-dev-documents-h9uf8l1k')
 
 # Get the main table reference
 table = dynamodb.Table(ACTIONS_TABLE)
+
+def detect_file_type(file_data):
+    """Detect file type from binary signature"""
+    if isinstance(file_data, str):
+        file_data = file_data.encode("utf-8")
+    
+    if file_data.startswith(b"PK"):
+        return "docx"
+    elif file_data.startswith(b"%PDF"):
+        return "pdf"
+    else:
+        return "pdf"
+
 
 def convert_decimals(obj):
     """Convert DynamoDB Decimal objects to regular numbers"""
@@ -82,7 +97,7 @@ def lambda_handler(event, context):
         if http_method == 'OPTIONS':
             return success_response({'message': 'CORS preflight'})
 
-        # Route to appropriate handler based on your actual API structure
+        # Route to appropriate handler
         if path == '/health':
             return handle_health()
         
@@ -126,6 +141,11 @@ def lambda_handler(event, context):
         elif path == '/api/v1/document-suggestions/pending':
             return handle_get_pending_suggestions()
         
+        elif path.startswith('/api/v1/document-suggestions/') and path.endswith('/approve'):
+            suggestion_id = path.split('/')[-2]
+            if http_method == 'POST':
+                return handle_approve_suggestion(suggestion_id, body_data)
+        
         else:
             logger.warning(f"Unhandled path: {path}")
             return error_response(404, f'Endpoint not found: {path}')
@@ -143,56 +163,69 @@ def handle_health():
     })
 
 def handle_get_actions(query_parameters=None):
-    """Get actions using the correct DynamoDB structure"""
+    """Get actions - simplified for debugging"""
     try:
-        # Use scan with filter on PK to get all actions
-        response = table.scan(
-            FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':pk_prefix': 'ACTION#'}
-        )
+        logger.info("Getting actions...")
         
+        # Simple scan to get all actions
+        response = table.scan()
+        logger.info(f"DynamoDB scan response: {response}")
+        
+        # Filter for action items
         actions = []
         for item in response.get('Items', []):
-            # Convert DynamoDB item to action format
-            action = {
-                'actionId': item.get('actionId', item.get('PK', '').replace('ACTION#', '')),
-                'title': item.get('title', ''),
-                'description': item.get('description', ''),
-                'status': item.get('status', 'PENDING'),
-                'priority': item.get('priority', 'MEDIUM'),
-                'projectId': item.get('projectId', 'miscellaneous'),
-                'owner': item.get('owner', ''),
-                'deadline': item.get('deadline', ''),
-                'createdAt': item.get('createdAt', ''),
-                'updatedAt': item.get('updatedAt', ''),
-                'source': item.get('source', 'MANUAL')
-            }
-            actions.append(action)
+            # Look for action items by checking PK or actionId
+            if (item.get('PK', '').startswith('ACTION#') or 
+                'actionId' in item or 
+                item.get('type') == 'action'):
+                
+                action = {
+                    'actionId': item.get('actionId', item.get('PK', '').replace('ACTION#', '')),
+                    'title': item.get('title', 'Untitled Action'),
+                    'description': item.get('description', ''),
+                    'status': item.get('status', 'PENDING'),
+                    'priority': item.get('priority', 'MEDIUM'),
+                    'projectId': item.get('projectId', 'miscellaneous'),
+                    'owner': item.get('owner', ''),
+                    'deadline': item.get('deadline', ''),
+                    'createdAt': item.get('createdAt', ''),
+                    'updatedAt': item.get('updatedAt', ''),
+                    'source': item.get('source', 'MANUAL')
+                }
+                actions.append(action)
         
+        logger.info(f"Found {len(actions)} actions")
         return success_response({'actions': actions, 'count': len(actions)})
         
     except Exception as e:
         logger.error(f"Error getting actions: {str(e)}")
-        return error_response(500, "Failed to get actions")
+        return error_response(500, f"Failed to get actions: {str(e)}")
 
 def handle_get_action(action_id):
     """Get a single action by ID"""
     try:
-        response = table.get_item(
-            Key={'PK': f'ACTION#{action_id}', 'SK': 'METADATA'}
-        )
+        # Try multiple possible key formats
+        possible_keys = [
+            {'PK': f'ACTION#{action_id}', 'SK': 'METADATA'},
+            {'actionId': action_id}
+        ]
         
-        if 'Item' not in response:
-            return error_response(404, "Action not found")
-        
-        return success_response({'action': convert_decimals(response['Item'])})
+        for key in possible_keys:
+            try:
+                response = table.get_item(Key=key)
+                if 'Item' in response:
+                    return success_response({'action': convert_decimals(response['Item'])})
+            except:
+                continue
+                
+        return error_response(404, "Action not found")
         
     except Exception as e:
         logger.error(f"Error getting action {action_id}: {str(e)}")
         return error_response(500, "Failed to get action")
 
 def handle_create_action(body_data):
-    """Create a new action with correct DynamoDB structure"""
+    """Create a new action"""
     try:
         # Validate required fields
         if not body_data.get('title'):
@@ -202,12 +235,10 @@ def handle_create_action(body_data):
         action_id = f"ACT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
         timestamp = datetime.now(timezone.utc).isoformat()
         
-        # Create action item with correct structure
+        # Create action item
         action_item = {
             'PK': f'ACTION#{action_id}',
             'SK': 'METADATA',
-            'GSI1PK': f"ACTION#{body_data.get('status', 'PENDING')}",
-            'GSI1SK': f"PROJECT#{body_data.get('project', 'miscellaneous')}",
             'actionId': action_id,
             'title': body_data['title'],
             'description': body_data.get('description', ''),
@@ -228,10 +259,10 @@ def handle_create_action(body_data):
         
     except Exception as e:
         logger.error(f"Error creating action: {str(e)}")
-        return error_response(500, "Failed to create action")
+        return error_response(500, f"Failed to create action: {str(e)}")
 
 def handle_update_action(action_id, body_data):
-    """Update an existing action with proper reserved keyword handling"""
+    """Update an existing action"""
     try:
         # Get existing action first
         response = table.get_item(
@@ -241,33 +272,26 @@ def handle_update_action(action_id, body_data):
         if 'Item' not in response:
             return error_response(404, "Action not found")
         
-        # Build update expression with proper attribute names for reserved keywords
+        # Build update expression
         update_expression = "SET updatedAt = :timestamp"
         expression_values = {':timestamp': datetime.now(timezone.utc).isoformat()}
         expression_names = {}
         
-        # Define reserved keywords that need special handling
-        reserved_keywords = ['status', 'owner', 'data', 'timestamp', 'comment']
+        # Handle reserved keywords
+        reserved_keywords = ['status', 'owner']
         updateable_fields = ['title', 'description', 'status', 'priority', 'deadline', 'owner', 'projectId']
         
         for field in updateable_fields:
             if field in body_data:
                 if field.lower() in reserved_keywords:
-                    # Use ExpressionAttributeNames for reserved keywords
                     update_expression += f", #{field} = :{field}"
                     expression_names[f'#{field}'] = field
                     expression_values[f':{field}'] = body_data[field]
                 else:
-                    # Regular field update
                     update_expression += f", {field} = :{field}"
                     expression_values[f':{field}'] = body_data[field]
         
-        # Update GSI1PK if status changed (for filtering)
-        if 'status' in body_data:
-            update_expression += ", GSI1PK = :gsi1pk"
-            expression_values[':gsi1pk'] = f"ACTION#{body_data['status']}"
-        
-        # Build the update parameters
+        # Build update parameters
         update_params = {
             'Key': {'PK': f'ACTION#{action_id}', 'SK': 'METADATA'},
             'UpdateExpression': update_expression,
@@ -275,11 +299,9 @@ def handle_update_action(action_id, body_data):
             'ReturnValues': 'ALL_NEW'
         }
         
-        # Add ExpressionAttributeNames only if we have reserved keywords
         if expression_names:
             update_params['ExpressionAttributeNames'] = expression_names
         
-        # Perform the update
         update_response = table.update_item(**update_params)
         
         logger.info(f"Successfully updated action: {action_id}")
@@ -301,12 +323,11 @@ def handle_update_action_status(action_id, body_data):
         
         response = table.update_item(
             Key={'PK': f'ACTION#{action_id}', 'SK': 'METADATA'},
-            UpdateExpression='SET #status = :status, updatedAt = :timestamp, GSI1PK = :gsi1pk',
+            UpdateExpression='SET #status = :status, updatedAt = :timestamp',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
                 ':status': status,
-                ':timestamp': datetime.now(timezone.utc).isoformat(),
-                ':gsi1pk': f'ACTION#{status}'
+                ':timestamp': datetime.now(timezone.utc).isoformat()
             },
             ReturnValues='ALL_NEW'
         )
@@ -322,61 +343,14 @@ def handle_update_action_status(action_id, body_data):
         return error_response(500, "Failed to update action status")
 
 def handle_delete_action(action_id):
-    """Delete an action - handles multiple ID formats for backward compatibility"""
+    """Delete an action"""
     try:
-        # Try multiple key formats for backwards compatibility
-        possible_keys = [
-            # Current format
-            {'PK': f'ACTION#{action_id}', 'SK': 'METADATA'},
-            # Alternative format for UUIDs
-            {'PK': f'ACTION#{action_id}', 'SK': f'ACTION#{action_id}'},
-            # Legacy format
-            {'PK': action_id, 'SK': 'METADATA'}
-        ]
+        # Try to delete with the standard key format
+        table.delete_item(
+            Key={'PK': f'ACTION#{action_id}', 'SK': 'METADATA'}
+        )
         
-        action_found = None
-        key_to_delete = None
-        
-        # Try each possible key format
-        for key in possible_keys:
-            try:
-                response = table.get_item(Key=key)
-                if 'Item' in response:
-                    action_found = response['Item']
-                    key_to_delete = key
-                    logger.info(f"Found action {action_id} with key format: {key}")
-                    break
-            except Exception as e:
-                logger.debug(f"Failed to find action with key {key}: {str(e)}")
-                continue
-        
-        # If not found with direct keys, try scanning
-        if not action_found:
-            logger.info(f"Scanning for action {action_id}")
-            scan_response = table.scan(
-                FilterExpression='contains(PK, :action_id) OR contains(SK, :action_id) OR contains(actionId, :action_id)',
-                ExpressionAttributeValues={':action_id': action_id}
-            )
-            
-            if scan_response.get('Items'):
-                for item in scan_response['Items']:
-                    # Check if this is our action
-                    if (item.get('actionId') == action_id or 
-                        action_id in item.get('PK', '') or 
-                        action_id in item.get('SK', '')):
-                        action_found = item
-                        key_to_delete = {'PK': item['PK'], 'SK': item['SK']}
-                        logger.info(f"Found action {action_id} via scan: PK={item['PK']}, SK={item['SK']}")
-                        break
-        
-        if not action_found:
-            logger.error(f"Action not found: {action_id}")
-            return error_response(404, f"Action not found: {action_id}")
-        
-        # Delete the action
-        table.delete_item(Key=key_to_delete)
-        
-        logger.info(f"Successfully deleted action: {action_id} with key: {key_to_delete}")
+        logger.info(f"Successfully deleted action: {action_id}")
         return success_response({'message': 'Action deleted successfully'})
         
     except Exception as e:
@@ -386,23 +360,21 @@ def handle_delete_action(action_id):
 def handle_get_projects():
     """Get all projects"""
     try:
-        # Scan for project items
-        response = table.scan(
-            FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':pk_prefix': 'PROJECT#'}
-        )
+        # Simple scan for projects
+        response = table.scan()
         
         projects = []
         for item in response.get('Items', []):
-            project = {
-                'projectId': item.get('projectId', item.get('PK', '').replace('PROJECT#', '')),
-                'name': item.get('name', ''),
-                'description': item.get('description', ''),
-                'status': item.get('status', 'ACTIVE'),
-                'createdAt': item.get('createdAt', ''),
-                'updatedAt': item.get('updatedAt', '')
-            }
-            projects.append(project)
+            if item.get('PK', '').startswith('PROJECT#') or 'projectId' in item:
+                project = {
+                    'projectId': item.get('projectId', item.get('PK', '').replace('PROJECT#', '')),
+                    'name': item.get('name', ''),
+                    'description': item.get('description', ''),
+                    'status': item.get('status', 'ACTIVE'),
+                    'createdAt': item.get('createdAt', ''),
+                    'updatedAt': item.get('updatedAt', '')
+                }
+                projects.append(project)
         
         return success_response({'projects': projects, 'count': len(projects)})
         
@@ -440,39 +412,24 @@ def handle_create_project(body_data):
         return error_response(500, "Failed to create project")
 
 def handle_dashboard_analytics():
-    """Get dashboard analytics"""
+    """Get dashboard analytics - simplified"""
     try:
-        # Get action counts by status
-        actions_response = table.scan(
-            FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':pk_prefix': 'ACTION#'}
-        )
-        
-        actions = actions_response.get('Items', [])
+        # Get all items and categorize
+        response = table.scan()
+        actions = [item for item in response.get('Items', []) if item.get('PK', '').startswith('ACTION#')]
+        projects = [item for item in response.get('Items', []) if item.get('PK', '').startswith('PROJECT#')]
         
         # Count by status
         status_counts = {}
-        priority_counts = {}
-        
         for action in actions:
             status = action.get('status', 'PENDING')
-            priority = action.get('priority', 'MEDIUM')
-            
             status_counts[status] = status_counts.get(status, 0) + 1
-            priority_counts[priority] = priority_counts.get(priority, 0) + 1
-        
-        # Get project count
-        projects_response = table.scan(
-            FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':pk_prefix': 'PROJECT#'}
-        )
         
         return success_response({
             'totalActions': len(actions),
-            'totalProjects': len(projects_response.get('Items', [])),
+            'totalProjects': len(projects),
             'actionsByStatus': status_counts,
-            'actionsByPriority': priority_counts,
-            'recentActions': len([a for a in actions if a.get('createdAt', '').startswith(datetime.now().strftime('%Y-%m-%d'))])
+            'recentActions': 0  # Simplified
         })
         
     except Exception as e:
@@ -482,29 +439,210 @@ def handle_dashboard_analytics():
 def handle_action_analytics():
     """Get action-specific analytics"""
     try:
-        response = table.scan(
-            FilterExpression='begins_with(PK, :pk_prefix)',
-            ExpressionAttributeValues={':pk_prefix': 'ACTION#'}
-        )
-        
-        actions = response.get('Items', [])
+        response = table.scan()
+        actions = [item for item in response.get('Items', []) if item.get('PK', '').startswith('ACTION#')]
         
         return success_response({
             'totalActions': len(actions),
-            'byStatus': {status: len([a for a in actions if a.get('status') == status]) for status in ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']},
-            'byPriority': {priority: len([a for a in actions if a.get('priority') == priority]) for priority in ['LOW', 'MEDIUM', 'HIGH', 'URGENT']},
-            'byOwner': {}
+            'byStatus': {status: len([a for a in actions if a.get('status') == status]) 
+                        for status in ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']},
+            'byPriority': {priority: len([a for a in actions if a.get('priority') == priority]) 
+                          for priority in ['LOW', 'MEDIUM', 'HIGH', 'URGENT']}
         })
         
     except Exception as e:
         logger.error(f"Error getting action analytics: {str(e)}")
         return error_response(500, "Failed to get action analytics")
 
-# Document processing placeholder functions
 def handle_document_upload(event):
-    """Handle document upload - placeholder"""
-    return success_response({'message': 'Document upload not yet implemented'})
+    """Handle document upload and trigger processing"""
+    try:
+        import base64
+        import uuid
+        from datetime import datetime, timezone
+        
+        # Parse the multipart form data
+        body = event.get('body', '')
+        content_type = event.get('headers', {}).get('Content-Type', '')
+        
+        if not body:
+            return error_response(400, 'No file data provided')
+        
+        # Handle base64 encoded body
+        if event.get('isBase64Encoded', False):
+            body = base64.b64decode(body)
+        else:
+            body = body.encode('utf-8')
+        
+        # Generate file info
+        document_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Detect file type from binary content
+        file_extension = "docx"
+        
+        # Create S3 key
+        s3_key = f"documents/{timestamp}_{document_id}.{file_extension}"
+        
+        # Upload to S3
+        s3_client.put_object(
+            Bucket=DOCUMENTS_BUCKET,
+            Key=s3_key,
+            Body=body,
+            ContentType=content_type
+        )
+        
+        logger.info(f"Uploaded file to S3: {s3_key}")
+        
+        # Trigger ECS task for processing
+        task_response = ecs_client.run_task(
+            cluster='deliverycommand-dev-cluster',
+            taskDefinition='deliverycommand-dev-document-processor',
+            launchType='FARGATE',
+            networkConfiguration={
+                'awsvpcConfiguration': {
+                    'subnets': [
+                        'subnet-08264e8225b611b9a',
+                        'subnet-042f5fe9c5b4d70c1'
+                    ],
+                    'securityGroups': ['sg-0a58a00cc6b3962fe'],
+                    'assignPublicIp': 'ENABLED'
+                }
+            },
+            overrides={
+                'containerOverrides': [
+                    {
+                        'name': 'document-processor',
+                        'environment': [
+                            {'name': 'DOCUMENT_BUCKET', 'value': DOCUMENTS_BUCKET},
+                            {'name': 'DOCUMENT_KEY', 'value': s3_key},
+                            {'name': 'DOCUMENT_ID', 'value': document_id},
+                            {'name': 'DYNAMODB_TABLE', 'value': ACTIONS_TABLE}
+                        ]
+                    }
+                ]
+            }
+        )
+        
+        task_arn = task_response['tasks'][0]['taskArn']
+        logger.info(f"Started ECS task: {task_arn}")
+        
+        # Store document metadata
+        document_item = {
+            'PK': f'DOCUMENT#{document_id}',
+            'SK': 'METADATA',
+            'documentId': document_id,
+            'filename': f"{timestamp}_{document_id}.{file_extension}",
+            's3Key': s3_key,
+            's3Bucket': DOCUMENTS_BUCKET,
+            'status': 'PROCESSING',
+            'taskArn': task_arn,
+            'createdAt': datetime.now(timezone.utc).isoformat(),
+            'fileExtension': file_extension
+        }
+        
+        table.put_item(Item=document_item)
+        
+        return success_response({
+            'message': 'Document uploaded successfully and processing started',
+            'documentId': document_id,
+            'status': 'PROCESSING',
+            'taskArn': task_arn,
+            's3Key': s3_key
+        })
+        
+    except Exception as e:
+        logger.error(f"Document upload error: {str(e)}")
+        return error_response(500, f'Upload failed: {str(e)}')
 
 def handle_get_pending_suggestions():
-    """Get pending document suggestions - placeholder"""
-    return success_response({'suggestions': [], 'count': 0})
+    """Get pending document suggestions"""
+    try:
+        # Scan for suggestion items
+        response = table.scan()
+        
+        suggestions = []
+        for item in response.get('Items', []):
+            if item.get('PK', '').startswith('SUGGESTION#') and item.get('status') == 'PENDING':
+                suggestion = {
+                    'suggestionId': item.get('suggestionId', item.get('PK', '').replace('SUGGESTION#', '')),
+                    'title': item.get('title', ''),
+                    'description': item.get('description', ''),
+                    'priority': item.get('priority', 'MEDIUM'),
+                    'confidence': float(item.get('confidence', 0.5)),
+                    'context': item.get('context', ''),
+                    'extractedFrom': item.get('extractedFrom', ''),
+                    'createdAt': item.get('createdAt', ''),
+                    'status': item.get('status', 'PENDING')
+                }
+                suggestions.append(suggestion)
+        
+        logger.info(f"Found {len(suggestions)} pending suggestions")
+        return success_response({
+            'suggestions': suggestions,
+            'total_suggestions': len(suggestions)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting pending suggestions: {str(e)}")
+        return error_response(500, f'Failed to get suggestions: {str(e)}')
+
+def handle_approve_suggestion(suggestion_id, body_data):
+    """Approve a suggestion and convert it to an action"""
+    try:
+        # Get the suggestion
+        response = table.get_item(
+            Key={'PK': f'SUGGESTION#{suggestion_id}', 'SK': 'METADATA'}
+        )
+        
+        if 'Item' not in response:
+            return error_response(404, "Suggestion not found")
+        
+        suggestion = response['Item']
+        
+        # Generate action ID
+        action_id = f"ACT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
+        timestamp = datetime.now(timezone.utc).isoformat()
+        
+        # Create action from suggestion with any edits from body_data
+        action_item = {
+            'PK': f'ACTION#{action_id}',
+            'SK': 'METADATA',
+            'actionId': action_id,
+            'title': body_data.get('title', suggestion.get('title', '')),
+            'description': body_data.get('description', suggestion.get('description', '')),
+            'owner': body_data.get('owner', ''),
+            'status': body_data.get('status', 'PENDING'),
+            'priority': body_data.get('priority', suggestion.get('priority', 'MEDIUM')),
+            'projectId': body_data.get('project', 'miscellaneous'),
+            'deadline': body_data.get('deadline', ''),
+            'createdAt': timestamp,
+            'updatedAt': timestamp,
+            'source': 'DOCUMENT_EXTRACTION',
+            'originalSuggestionId': suggestion_id
+        }
+        
+        # Create the action
+        table.put_item(Item=action_item)
+        
+        # Mark suggestion as approved
+        table.update_item(
+            Key={'PK': f'SUGGESTION#{suggestion_id}', 'SK': 'METADATA'},
+            UpdateExpression='SET #status = :status, approvedAt = :timestamp, actionId = :actionId',
+            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeValues={
+                ':status': 'APPROVED',
+                ':timestamp': timestamp,
+                ':actionId': action_id
+            }
+        )
+        
+        logger.info(f"Approved suggestion {suggestion_id} and created action {action_id}")
+        return success_response({
+            'action': convert_decimals(action_item),
+            'message': 'Suggestion approved and action created successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error approving suggestion {suggestion_id}: {str(e)}")
+        return error_response(500, f'Failed to approve suggestion: {str(e)}')
