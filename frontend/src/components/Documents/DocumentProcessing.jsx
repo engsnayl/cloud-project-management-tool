@@ -8,9 +8,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://x8dd7fpwf3.ex
 function DocumentProcessing() {
   const [activeTab, setActiveTab] = useState('upload');
   const [dragActive, setDragActive] = useState(false);
+  const [editingSuggestion, setEditingSuggestion] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
   const queryClient = useQueryClient();
 
-  // Fetch pending suggestions - FIXED API ENDPOINT
+  // Fetch pending suggestions
   const { data: suggestionsResponse, isLoading, error } = useQuery(
     ['suggestions'],
     async () => {
@@ -23,8 +25,22 @@ function DocumentProcessing() {
     }
   );
 
-  // Extract suggestions from the actual API response structure
+  // Fetch projects for dropdown
+  const { data: projectsData } = useQuery(
+    'projects',
+    async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/projects`);
+        if (!response.ok) return { projects: [] };
+        return response.json();
+      } catch (error) {
+        return { projects: [] };
+      }
+    }
+  );
+
   const suggestions = suggestionsResponse?.suggestions || [];
+  const projects = projectsData?.projects || [];
 
   // Document upload mutation
   const uploadMutation = useMutation(
@@ -42,25 +58,41 @@ function DocumentProcessing() {
     }
   );
 
-  // Approve suggestion mutation - FIXED API ENDPOINT AND DATA STRUCTURE
+  // Approve suggestion mutation - FIXED
   const approveMutation = useMutation(
     async ({ suggestionId, actionData }) => {
+      console.log('Approving suggestion:', { suggestionId, actionData });
+      
       const response = await fetch(`${API_BASE_URL}/document-suggestions/${suggestionId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(actionData)
+        body: JSON.stringify({ 
+          suggestionId: suggestionId,
+          actionData: actionData 
+        })
       });
-      if (!response.ok) throw new Error('Failed to approve suggestion');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Approval failed: ${response.status} - ${errorText}`);
+      }
       return response.json();
     },
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        console.log('Approval successful:', data);
         queryClient.invalidateQueries(['suggestions']);
+        queryClient.invalidateQueries('actions'); // Refresh actions page
+        alert(`Action created successfully! Check the Actions page to see your new confirmed action.`);
+      },
+      onError: (error) => {
+        console.error('Approval failed:', error);
+        alert(`Failed to approve suggestion: ${error.message}`);
       }
     }
   );
 
-  // Reject suggestion mutation - FIXED API ENDPOINT  
+  // Reject suggestion mutation
   const rejectMutation = useMutation(
     async (suggestionId) => {
       const response = await fetch(`${API_BASE_URL}/document-suggestions/${suggestionId}/reject`, {
@@ -104,14 +136,12 @@ function DocumentProcessing() {
   };
 
   const handleFile = (file) => {
-    // Validate file type
     const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowedTypes.includes(file.type)) {
       alert('Please upload only PDF or DOCX files.');
       return;
     }
     
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be less than 10MB.');
       return;
@@ -120,22 +150,70 @@ function DocumentProcessing() {
     uploadMutation.mutate(file);
   };
 
-  // FIXED: Updated to match actual API response structure
+  // Start editing a suggestion
+  const handleEditSuggestion = (suggestion) => {
+    setEditingSuggestion(suggestion.index);
+    setEditFormData({
+      title: suggestion.text,
+      description: suggestion.context || '',
+      owner: suggestion.extracted_assignee || '',
+      priority: suggestion.priority || 'MEDIUM',
+      status: 'PENDING',
+      projectId: '',
+      deadline: suggestion.extracted_due_date || ''
+    });
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingSuggestion(null);
+    setEditFormData({});
+  };
+
+  // Handle form input changes
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle approve with edited data
   const handleApprove = (suggestion) => {
-    const actionData = {
-      title: suggestion.text, // Updated field name
-      description: `From document: ${suggestionsResponse?.document_key || 'Unknown'}\n\nOriginal context: ${suggestion.context}`,
-      owner: suggestion.extracted_assignee || 'unassigned@company.com', // Updated field name
-      priority: suggestion.priority || (suggestion.confidence > 0.7 ? 'HIGH' : 'MEDIUM'), // Use API priority or calculate
-      status: 'PENDING', // Match your Actions component status values
-      deadline: suggestion.extracted_due_date || null, // Updated field name
-      projectId: 'miscellaneous' // Updated to match Actions component field name
+    const actionData = editingSuggestion === suggestion.index ? {
+      // Use edited data
+      title: editFormData.title,
+      description: editFormData.description,
+      owner: editFormData.owner || 'unassigned@company.com',
+      priority: editFormData.priority,
+      status: editFormData.status,
+      projectId: editFormData.projectId || 'miscellaneous',
+      deadline: editFormData.deadline
+    } : {
+      // Use original suggestion data
+      title: suggestion.text,
+      description: suggestion.context || `Extracted from document: ${suggestionsResponse?.document_key || 'document'}`,
+      owner: suggestion.extracted_assignee || 'unassigned@company.com',
+      priority: suggestion.priority || 'MEDIUM',
+      status: 'PENDING',
+      projectId: 'miscellaneous',
+      deadline: suggestion.extracted_due_date || null
     };
+
+    console.log('Preparing to approve:', { 
+      suggestionId: suggestionsResponse?.suggestionId, 
+      actionData 
+    });
 
     approveMutation.mutate({
       suggestionId: suggestionsResponse?.suggestionId,
       actionData
     });
+
+    // Close edit form
+    setEditingSuggestion(null);
+    setEditFormData({});
   };
 
   const handleReject = (suggestionIndex) => {
@@ -148,6 +226,12 @@ function DocumentProcessing() {
     if (score >= 0.7) return 'bg-green-100 text-green-800';
     if (score >= 0.5) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
+  };
+
+  const getProjectName = (projectId) => {
+    if (projectId === 'miscellaneous') return 'Miscellaneous';
+    const project = projects.find(p => p.projectId === projectId);
+    return project?.name || projectId;
   };
 
   return (
@@ -298,7 +382,8 @@ function DocumentProcessing() {
               </h2>
               
               {suggestions.map((suggestion, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div key={index} className="border border-gray-200 rounded-lg p-6 space-y-4">
+                  {/* Header with badges */}
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(suggestion.confidence)}`}>
@@ -309,44 +394,175 @@ function DocumentProcessing() {
                       </span>
                       <span className="text-sm text-gray-500">From: {suggestionsResponse?.document_key}</span>
                     </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-2">
-                      Suggested Action: {suggestion.text}
-                    </h3>
-                    <div className="bg-gray-50 rounded-md p-3">
-                      <p className="text-sm text-gray-600 italic">
-                        Context: "{suggestion.context}"
-                      </p>
+                    <div className="flex items-center space-x-2">
+                      {editingSuggestion !== index && (
+                        <button
+                          onClick={() => handleEditSuggestion(suggestion)}
+                          className="px-3 py-1 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {(suggestion.extracted_assignee || suggestion.extracted_due_date) && (
-                    <div className="flex space-x-4 text-sm text-gray-600">
-                      {suggestion.extracted_assignee && (
-                        <span>Owner: <strong>{suggestion.extracted_assignee}</strong></span>
+                  {/* Content - Editable or Read-only */}
+                  {editingSuggestion === index ? (
+                    // Edit Form
+                    <div className="space-y-4 bg-gray-50 p-4 rounded">
+                      <h3 className="font-medium text-gray-900">Edit Action Details</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                          <input
+                            type="text"
+                            name="title"
+                            value={editFormData.title}
+                            onChange={handleFormChange}
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                          <textarea
+                            name="description"
+                            value={editFormData.description}
+                            onChange={handleFormChange}
+                            rows={3}
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
+                          <input
+                            type="email"
+                            name="owner"
+                            value={editFormData.owner}
+                            onChange={handleFormChange}
+                            placeholder="owner@company.com"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                          <select
+                            name="priority"
+                            value={editFormData.priority}
+                            onChange={handleFormChange}
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="URGENT">Urgent</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                          <select
+                            name="status"
+                            value={editFormData.status}
+                            onChange={handleFormChange}
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="PENDING">Pending</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="COMPLETED">Completed</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
+                          <select
+                            name="projectId"
+                            value={editFormData.projectId}
+                            onChange={handleFormChange}
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Select Project</option>
+                            <option value="miscellaneous">Miscellaneous</option>
+                            {projects.map(project => (
+                              <option key={project.projectId} value={project.projectId}>
+                                {project.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                          <input
+                            type="date"
+                            name="deadline"
+                            value={editFormData.deadline}
+                            onChange={handleFormChange}
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleApprove(suggestion)}
+                          className="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700"
+                          disabled={approveMutation.isLoading}
+                        >
+                          {approveMutation.isLoading ? 'Approving...' : 'Approve & Create Action'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Read-only View
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">
+                        Suggested Action: {suggestion.text}
+                      </h3>
+                      <div className="bg-gray-50 rounded-md p-3">
+                        <p className="text-sm text-gray-600 italic">
+                          Context: "{suggestion.context}"
+                        </p>
+                      </div>
+                      
+                      {(suggestion.extracted_assignee || suggestion.extracted_due_date) && (
+                        <div className="flex space-x-4 text-sm text-gray-600 mt-3">
+                          {suggestion.extracted_assignee && (
+                            <span>Owner: <strong>{suggestion.extracted_assignee}</strong></span>
+                          )}
+                          {suggestion.extracted_due_date && (
+                            <span>Due: <strong>{suggestion.extracted_due_date}</strong></span>
+                          )}
+                        </div>
                       )}
-                      {suggestion.extracted_due_date && (
-                        <span>Due: <strong>{suggestion.extracted_due_date}</strong></span>
-                      )}
+
+                      <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                          onClick={() => handleReject(index)}
+                          className="px-3 py-1 text-sm text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100"
+                          disabled={rejectMutation.isLoading}
+                        >
+                          {rejectMutation.isLoading ? 'Rejecting...' : 'Reject'}
+                        </button>
+                        <button
+                          onClick={() => handleApprove(suggestion)}
+                          className="px-3 py-1 text-sm text-white bg-green-600 border border-transparent rounded hover:bg-green-700"
+                          disabled={approveMutation.isLoading}
+                        >
+                          {approveMutation.isLoading ? 'Approving...' : 'Approve'}
+                        </button>
+                      </div>
                     </div>
                   )}
-
-                  <div className="flex justify-end space-x-3 pt-2">
-                    <button
-                      onClick={() => handleReject(index)}
-                      className="px-3 py-1 text-sm text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => handleApprove(suggestion)}
-                      className="px-3 py-1 text-sm text-white bg-green-600 border border-transparent rounded hover:bg-green-700"
-                    >
-                      Approve
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
