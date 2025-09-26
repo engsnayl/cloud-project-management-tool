@@ -3,18 +3,18 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/api/v1';
 
 function DocumentProcessing() {
   const [activeTab, setActiveTab] = useState('upload');
   const [dragActive, setDragActive] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch pending suggestions
-  const { data: suggestions = [], isLoading } = useQuery(
+  // Fetch pending suggestions - FIXED API ENDPOINT
+  const { data: suggestionsResponse, isLoading, error } = useQuery(
     ['suggestions'],
     async () => {
-      const response = await fetch(`${API_BASE_URL}/suggestions?status=pending_review`);
+      const response = await fetch(`${API_BASE_URL}/document-suggestions/pending`);
       if (!response.ok) throw new Error('Failed to fetch suggestions');
       return response.json();
     },
@@ -22,6 +22,9 @@ function DocumentProcessing() {
       refetchInterval: 10000
     }
   );
+
+  // Extract suggestions from the actual API response structure
+  const suggestions = suggestionsResponse?.suggestions || [];
 
   // Document upload mutation
   const uploadMutation = useMutation(
@@ -39,10 +42,10 @@ function DocumentProcessing() {
     }
   );
 
-  // Approve suggestion mutation
+  // Approve suggestion mutation - FIXED API ENDPOINT AND DATA STRUCTURE
   const approveMutation = useMutation(
     async ({ suggestionId, actionData }) => {
-      const response = await fetch(`${API_BASE_URL}/suggestions/${suggestionId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/document-suggestions/${suggestionId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(actionData)
@@ -57,10 +60,10 @@ function DocumentProcessing() {
     }
   );
 
-  // Reject suggestion mutation
+  // Reject suggestion mutation - FIXED API ENDPOINT  
   const rejectMutation = useMutation(
     async (suggestionId) => {
-      const response = await fetch(`${API_BASE_URL}/suggestions/${suggestionId}/reject`, {
+      const response = await fetch(`${API_BASE_URL}/document-suggestions/${suggestionId}/reject`, {
         method: 'POST'
       });
       if (!response.ok) throw new Error('Failed to reject suggestion');
@@ -117,26 +120,27 @@ function DocumentProcessing() {
     uploadMutation.mutate(file);
   };
 
+  // FIXED: Updated to match actual API response structure
   const handleApprove = (suggestion) => {
     const actionData = {
-      title: suggestion.extracted_action,
-      description: `From document: ${suggestion.document_name}\n\nOriginal: ${suggestion.original_text}`,
-      owner: suggestion.suggested_assignee || 'unassigned@company.com',
-      priority: suggestion.confidence_score > 0.7 ? 'high' : 'medium',
-      status: 'pending',
-      due_date: suggestion.suggested_due_date || null,
-      project: 'miscellaneous'
+      title: suggestion.text, // Updated field name
+      description: `From document: ${suggestionsResponse?.document_key || 'Unknown'}\n\nOriginal context: ${suggestion.context}`,
+      owner: suggestion.extracted_assignee || 'unassigned@company.com', // Updated field name
+      priority: suggestion.priority || (suggestion.confidence > 0.7 ? 'HIGH' : 'MEDIUM'), // Use API priority or calculate
+      status: 'PENDING', // Match your Actions component status values
+      deadline: suggestion.extracted_due_date || null, // Updated field name
+      projectId: 'miscellaneous' // Updated to match Actions component field name
     };
 
     approveMutation.mutate({
-      suggestionId: suggestion.suggestion_id,
+      suggestionId: suggestionsResponse?.suggestionId,
       actionData
     });
   };
 
-  const handleReject = (suggestionId) => {
+  const handleReject = (suggestionIndex) => {
     if (window.confirm('Are you sure you want to reject this suggestion?')) {
-      rejectMutation.mutate(suggestionId);
+      rejectMutation.mutate(suggestionsResponse?.suggestionId);
     }
   };
 
@@ -269,6 +273,16 @@ function DocumentProcessing() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
               <p className="mt-2 text-gray-500">Loading suggestions...</p>
             </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="text-red-600 mb-4">Error loading suggestions: {error.message}</div>
+              <button 
+                onClick={() => queryClient.invalidateQueries(['suggestions'])}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Retry
+              </button>
+            </div>
           ) : suggestions.length === 0 ? (
             <div className="text-center py-12">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,42 +297,45 @@ function DocumentProcessing() {
                 Review Extracted Actions ({suggestions.length})
               </h2>
               
-              {suggestions.map((suggestion) => (
-                <div key={suggestion.suggestion_id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              {suggestions.map((suggestion, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(suggestion.confidence_score)}`}>
-                        {Math.round(suggestion.confidence_score * 100)}% confidence
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(suggestion.confidence)}`}>
+                        {Math.round(suggestion.confidence * 100)}% confidence
                       </span>
-                      <span className="text-sm text-gray-500">From: {suggestion.document_name}</span>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {suggestion.priority}
+                      </span>
+                      <span className="text-sm text-gray-500">From: {suggestionsResponse?.document_key}</span>
                     </div>
                   </div>
 
                   <div>
                     <h3 className="font-medium text-gray-900 mb-2">
-                      Suggested Action: {suggestion.extracted_action}
+                      Suggested Action: {suggestion.text}
                     </h3>
                     <div className="bg-gray-50 rounded-md p-3">
                       <p className="text-sm text-gray-600 italic">
-                        "{suggestion.original_text}"
+                        Context: "{suggestion.context}"
                       </p>
                     </div>
                   </div>
 
-                  {(suggestion.suggested_assignee || suggestion.suggested_due_date) && (
+                  {(suggestion.extracted_assignee || suggestion.extracted_due_date) && (
                     <div className="flex space-x-4 text-sm text-gray-600">
-                      {suggestion.suggested_assignee && (
-                        <span>Owner: <strong>{suggestion.suggested_assignee}</strong></span>
+                      {suggestion.extracted_assignee && (
+                        <span>Owner: <strong>{suggestion.extracted_assignee}</strong></span>
                       )}
-                      {suggestion.suggested_due_date && (
-                        <span>Due: <strong>{suggestion.suggested_due_date}</strong></span>
+                      {suggestion.extracted_due_date && (
+                        <span>Due: <strong>{suggestion.extracted_due_date}</strong></span>
                       )}
                     </div>
                   )}
 
                   <div className="flex justify-end space-x-3 pt-2">
                     <button
-                      onClick={() => handleReject(suggestion.suggestion_id)}
+                      onClick={() => handleReject(index)}
                       className="px-3 py-1 text-sm text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100"
                     >
                       Reject
