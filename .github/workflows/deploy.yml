@@ -81,7 +81,7 @@ jobs:
         run: |
           echo "Building frontend..."
           cd frontend
-          npm ci --production
+          npm ci
           npm run build
           
           echo "Deploying frontend to S3..."
