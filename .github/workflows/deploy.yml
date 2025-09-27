@@ -1,5 +1,5 @@
-# workspaces/cloud-project-management-tool/.github/workflows/deploy.yml
-name: Deploy to Dev Environment
+# .github/workflows/deploy.yml
+name: Deploy Action Tracker to Dev
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   AWS_REGION: eu-west-1
 
 jobs:
-  deploy-dev:
+  deploy:
     name: Deploy to Development
     runs-on: ubuntu-latest
     environment: 
@@ -28,28 +28,100 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy Lambda Function
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Build Lambda Functions
         run: |
-          cd src/lambdas/api-handler
-          zip -r lambda_function.zip lambda_function.py
-          aws lambda update-function-code \
-            --function-name deliverycommand-dev-api-handler \
-            --zip-file fileb://lambda_function.zip \
-            --region ${{ env.AWS_REGION }}
+          echo "Building Lambda deployment packages..."
+          chmod +x scripts/build-lambdas.sh
+          ./scripts/build-lambdas.sh
+
+      - name: Deploy Lambda Functions
+        run: |
+          echo "Deploying Lambda functions..."
+          
+          # Deploy API Handler
+          if [ -f "src/lambdas/api-handler/lambda-deployment.zip" ]; then
+            aws lambda update-function-code \
+              --function-name deliverycommand-dev-api-handler \
+              --zip-file fileb://src/lambdas/api-handler/lambda-deployment.zip \
+              --region ${{ env.AWS_REGION }}
+            echo "✓ API Handler deployed"
+          fi
+          
+          # Deploy JWT Authorizer
+          if [ -f "src/lambdas/jwt-authorizer/lambda-deployment.zip" ]; then
+            aws lambda update-function-code \
+              --function-name deliverycommand-dev-jwt-authorizer \
+              --zip-file fileb://src/lambdas/jwt-authorizer/lambda-deployment.zip \
+              --region ${{ env.AWS_REGION }}
+            echo "✓ JWT Authorizer deployed"
+          fi
+          
+          # Deploy Document Review API
+          if [ -f "src/lambdas/document-review-api/lambda-deployment.zip" ]; then
+            aws lambda update-function-code \
+              --function-name deliverycommand-dev-document-review-api \
+              --zip-file fileb://src/lambdas/document-review-api/lambda-deployment.zip \
+              --region ${{ env.AWS_REGION }}
+            echo "✓ Document Review API deployed"
+          fi
 
       - name: Build and Deploy Frontend
         run: |
+          echo "Building frontend..."
           cd frontend
-          npm ci
+          npm ci --production
           npm run build
           
-          # Deploy to S3
-          aws s3 sync dist/ s3://deliverycommand-dev-frontend-hhm6m50m --delete
+          echo "Deploying frontend to S3..."
+          aws s3 sync dist/ s3://deliverycommand-dev-frontend-hhm6m50m --delete --quiet
+          
+          echo "Invalidating CloudFront cache..."
           aws cloudfront create-invalidation \
             --distribution-id ECIVTEJ5GHRSW \
-            --paths "/*"
+            --paths "/*" \
+            --no-cli-pager
 
-      - name: Test Health Endpoint
+      - name: Run Health Checks
         run: |
+          echo "Waiting for deployment to settle..."
           sleep 30
-          curl -f https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/health || echo "Health check completed"
+          
+          echo "Testing API health..."
+          api_health=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev/api/v1/health" || echo "000")
+          
+          if [ "$api_health" = "200" ]; then
+            echo "✓ API health check passed"
+          else
+            echo "✗ API health check failed (HTTP $api_health)"
+            exit 1
+          fi
+          
+          echo "Testing frontend..."
+          frontend_health=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://actions-dev.engsnayl.com" || echo "000")
+          
+          if [ "$frontend_health" = "200" ]; then
+            echo "✓ Frontend health check passed"
+          else
+            echo "✗ Frontend health check failed (HTTP $frontend_health)"
+            exit 1
+          fi
+
+      - name: Run Smoke Tests
+        run: |
+          echo "Running comprehensive smoke tests..."
+          chmod +x scripts/smoke-tests.sh
+          ./scripts/smoke-tests.sh dev
