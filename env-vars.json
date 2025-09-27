@@ -1,5 +1,0 @@
-{
-  "COGNITO_USER_POOL_ID": "eu-west-1_PqLIEsG1k",
-  "COGNITO_APP_CLIENT_ID": "647q6ph5fv5b1578q08g7i25k2",
-  "API_ARN_PREFIX": "arn:aws:execute-api:eu-west-1:340752829546:x8dd7fpwf3"
-}
