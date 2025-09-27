@@ -66,13 +66,13 @@ module "cognito" {
   tags = local.common_tags
 }
 
-# EventBridge Module - Create bus first without Lambda targets
+# EventBridge Module - Simplified without ECS integration
 module "eventbridge" {
   source = "../../modules/eventbridge"
 
   project_name = var.project_name
   environment  = var.environment
-  # EventBridge now points to ECS container, not Lambda
+  # Lambda-only architecture
   api_handler_function_arn          = ""
   document_processor_function_arn   = ""
   requirement_approval_workflow_arn = var.requirement_approval_workflow_arn
@@ -81,7 +81,7 @@ module "eventbridge" {
   tags = local.common_tags
 }
 
-# Lambda Module - DOCUMENT PROCESSOR REMOVED (Container handles it)
+# Lambda Module - All document processing via Lambda functions
 module "lambda" {
   source = "../../modules/lambda"
 
@@ -96,7 +96,7 @@ module "lambda" {
   log_retention_days   = var.log_retention_days
   eventbridge_bus_name = module.eventbridge.event_bus_name
 
-  # Lambda zip paths - ONLY for the functions we actually need
+  # Lambda zip paths for deployed functions
   api_handler_zip_path         = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
   jwt_authorizer_zip_path      = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
   document_review_api_zip_path = "${path.root}/../../../src/lambdas/document-review-api.zip"
@@ -131,10 +131,6 @@ module "api_gateway" {
   depends_on = [module.lambda]
 }
 
-# Update Lambda with API Gateway execution ARN after creation
-# Note: Removed this resource as the Lambda environment variables are already set correctly
-# in the Lambda module and this was causing AWS CLI JSON parsing issues
-
 # CloudWatch Monitoring Module
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
@@ -143,8 +139,8 @@ module "cloudwatch" {
   environment               = var.environment
   api_gateway_name          = module.api_gateway.api_gateway_name
   api_handler_function_name = module.lambda.api_handler_function_name
-  # REMOVED document_processor_function_name - Container handles document processing
-  document_processor_function_name = "CONTAINER" # Indicates container handles this
+  # Use Lambda function for document processing instead of container
+  document_processor_function_name = module.lambda.document_review_api_function_name
   dynamodb_table_name              = module.dynamodb.table_name
   s3_bucket_name                   = module.s3.bucket_name
   alert_email                      = var.alert_email
@@ -223,29 +219,4 @@ module "frontend_hosting" {
   }
 
   depends_on = [module.api_gateway]
-}
-
-# ECS Module for Document Processing
-module "ecs" {
-  source = "../../modules/ecs"
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = module.vpc.private_subnet_ids
-
-  s3_bucket_name       = module.s3.bucket_name
-  s3_bucket_arn        = module.s3.bucket_arn
-  dynamodb_table_name  = module.dynamodb.table_name
-  dynamodb_table_arn   = module.dynamodb.table_arn
-  eventbridge_bus_name = module.eventbridge.event_bus_name
-  eventbridge_bus_arn  = module.eventbridge.event_bus_arn
-
-  document_processor_cpu    = var.document_processor_cpu
-  document_processor_memory = var.document_processor_memory
-  enable_container_insights = var.enable_container_insights
-  log_retention_days        = var.container_log_retention_days
-
-  tags = local.common_tags
 }

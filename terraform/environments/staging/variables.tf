@@ -10,7 +10,7 @@ variable "project_name" {
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "dev"
+  default     = "staging"
 }
 
 variable "aws_region" {
@@ -29,7 +29,7 @@ variable "owner_email" {
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
-  default     = "10.0.0.0/16"
+  default     = "10.1.0.0/16"  # Different CIDR for staging
 }
 
 variable "public_subnet_count" {
@@ -86,13 +86,13 @@ variable "allowed_origins" {
 variable "api_stage_name" {
   description = "API Gateway stage name"
   type        = string
-  default     = "dev"
+  default     = "staging"
 }
 
 variable "frontend_url" {
   description = "Frontend application URL"
   type        = string
-  default     = "http://localhost:3000"
+  default     = "https://actions-staging.engsnayl.com"
 }
 
 # Monitoring Configuration
@@ -167,7 +167,7 @@ variable "sender_email" {
 variable "dashboard_url" {
   description = "URL of the dashboard"
   type        = string
-  default     = "https://actions-dev.engsnayl.com"
+  default     = "https://actions-staging.engsnayl.com"
 }
 
 variable "domain_name" {
@@ -179,32 +179,7 @@ variable "domain_name" {
 variable "dashboard_url_hostname" {
   description = "Dashboard hostname"
   type        = string
-  default     = "actions-dev.engsnayl.com"
-}
-
-# Container Configuration
-variable "document_processor_cpu" {
-  description = "CPU units for document processor task"
-  type        = number
-  default     = 512
-}
-
-variable "document_processor_memory" {
-  description = "Memory in MB for document processor task"
-  type        = number
-  default     = 1024
-}
-
-variable "enable_container_insights" {
-  description = "Enable CloudWatch Container Insights"
-  type        = bool
-  default     = false
-}
-
-variable "container_log_retention_days" {
-  description = "Container log retention days"
-  type        = number
-  default     = 7
+  default     = "actions-staging.engsnayl.com"
 }
 
 # Dynamic Workflow Configuration (removed hardcoded ARNs)

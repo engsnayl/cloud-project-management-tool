@@ -106,6 +106,22 @@ output "event_dlq_url" {
   value       = module.eventbridge.event_dlq_url
 }
 
+# Lambda Function Outputs
+output "api_handler_function_name" {
+  description = "API handler Lambda function name"
+  value       = module.lambda.api_handler_function_name
+}
+
+output "document_review_api_function_name" {
+  description = "Document review API Lambda function name"
+  value       = module.lambda.document_review_api_function_name
+}
+
+output "jwt_authorizer_function_name" {
+  description = "JWT authorizer Lambda function name"
+  value       = module.lambda.jwt_authorizer_function_name
+}
+
 # Monitoring Outputs
 output "alert_topic_arn" {
   description = "SNS alerts topic ARN"
@@ -150,22 +166,6 @@ output "cloudfront_distribution_id" {
   value       = module.frontend_hosting.cloudfront_distribution_id
 }
 
-# Container Platform Outputs
-output "ecr_repository_url" {
-  description = "ECR repository URL"
-  value       = module.ecs.ecr_repository_url
-}
-
-output "ecs_cluster_name" {
-  description = "ECS cluster name"
-  value       = module.ecs.ecs_cluster_name
-}
-
-output "container_log_group" {
-  description = "Container log group name"
-  value       = module.ecs.cloudwatch_log_group_name
-}
-
 # Application Configuration
 output "auth_config" {
   description = "Authentication configuration for frontend"
@@ -178,14 +178,4 @@ output "auth_config" {
     apiGatewayUrl    = module.api_gateway.api_gateway_url
   }
   sensitive = true
-}
-
-output "container_deployment_info" {
-  description = "Container deployment information"
-  value = {
-    repository_url = module.ecs.ecr_repository_url
-    cluster_name   = module.ecs.ecs_cluster_name
-    task_family    = module.ecs.task_definition_family
-    log_group      = module.ecs.cloudwatch_log_group_name
-  }
 }
