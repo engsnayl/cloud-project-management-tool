@@ -182,31 +182,6 @@ variable "dashboard_url_hostname" {
   default     = "actions-dev.engsnayl.com"
 }
 
-# Container Configuration
-variable "document_processor_cpu" {
-  description = "CPU units for document processor task"
-  type        = number
-  default     = 512
-}
-
-variable "document_processor_memory" {
-  description = "Memory in MB for document processor task"
-  type        = number
-  default     = 1024
-}
-
-variable "enable_container_insights" {
-  description = "Enable CloudWatch Container Insights"
-  type        = bool
-  default     = false
-}
-
-variable "container_log_retention_days" {
-  description = "Container log retention days"
-  type        = number
-  default     = 7
-}
-
 # Dynamic Workflow Configuration (removed hardcoded ARNs)
 variable "requirement_approval_workflow_arn" {
   description = "ARN of requirement approval workflow"
