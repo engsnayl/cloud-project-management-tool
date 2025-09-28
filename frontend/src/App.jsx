@@ -1,11 +1,10 @@
-//cloud-project-management-tool/frontend/src/App.jsx
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import Header from './components/Layout/Header';
 import Navigation from './components/Layout/Navigation';
 import Actions from './components/Actions/Actions';
+import BulkActionUpload from './components/BulkActions/BulkActionUpload';
 
 const queryClient = new QueryClient();
 
@@ -25,6 +24,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Actions />} />
               <Route path="/actions" element={<Actions />} />
+              <Route path="/documents" element={<BulkActionUpload />} />
             </Routes>
           </main>
         </div>
