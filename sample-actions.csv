@@ -1,6 +1,0 @@
-title,project,description,owner,priority,status,dueDate
-"Update user authentication","Customer Portal","Research and implement OAuth 2.0","john.smith@company.com","HIGH","PENDING","2025-02-01"
-"Database migration","Backend API","Migrate from MySQL to PostgreSQL","jane.doe@company.com","MEDIUM","IN_PROGRESS","2025-02-15"
-"UI testing","Frontend","Complete unit tests for all components","alex.jones@company.com","LOW","PENDING","2025-01-30"
-"API documentation","Backend API","Document all REST endpoints","sarah.wilson@company.com","MEDIUM","PENDING","2025-02-10"
-"Performance optimization","Customer Portal","Optimize page load times","mike.brown@company.com","HIGH","PENDING","2025-02-20"
