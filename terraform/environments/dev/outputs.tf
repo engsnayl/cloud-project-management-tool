@@ -112,10 +112,6 @@ output "api_handler_function_name" {
   value       = module.lambda.api_handler_function_name
 }
 
-output "document_review_api_function_name" {
-  description = "Document review API Lambda function name"
-  value       = module.lambda.document_review_api_function_name
-}
 
 output "jwt_authorizer_function_name" {
   description = "JWT authorizer Lambda function name"

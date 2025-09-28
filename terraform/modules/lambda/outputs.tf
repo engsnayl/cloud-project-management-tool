@@ -37,22 +37,6 @@ output "jwt_authorizer_invoke_arn" {
   value       = aws_lambda_function.jwt_authorizer.invoke_arn
 }
 
-# Document Review API outputs
-output "document_review_api_function_name" {
-  description = "Name of the document review API Lambda function"
-  value       = aws_lambda_function.document_review_api.function_name
-}
-
-output "document_review_api_function_arn" {
-  description = "ARN of the document review API Lambda function"
-  value       = aws_lambda_function.document_review_api.arn
-}
-
-output "document_review_api_invoke_arn" {
-  description = "Invoke ARN of the document review API Lambda function"
-  value       = aws_lambda_function.document_review_api.invoke_arn
-}
-
 # Optional outputs
 output "lambda_security_group_id" {
   description = "ID of the Lambda security group (if VPC access enabled)"

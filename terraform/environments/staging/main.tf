@@ -81,7 +81,7 @@ module "eventbridge" {
   tags = local.common_tags
 }
 
-# Lambda Module - All document processing via Lambda functions
+# Lambda Module - Core functions only
 module "lambda" {
   source = "../../modules/lambda"
 
@@ -97,14 +97,12 @@ module "lambda" {
   eventbridge_bus_name = module.eventbridge.event_bus_name
 
   # Lambda zip paths for deployed functions
-  api_handler_zip_path         = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
-  jwt_authorizer_zip_path      = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
-  document_review_api_zip_path = "${path.root}/../../../src/lambdas/document-review-api.zip"
+  api_handler_zip_path    = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
+  jwt_authorizer_zip_path = "${path.root}/../../../src/lambdas/jwt-authorizer/lambda-deployment.zip"
 
   # Pass Cognito info to Lambda
-  cognito_user_pool_id  = module.cognito.user_pool_id
-  cognito_app_client_id = module.cognito.user_pool_client_id
-  # API Gateway execution ARN will be set after API Gateway is created
+  cognito_user_pool_id      = module.cognito.user_pool_id
+  cognito_app_client_id     = module.cognito.user_pool_client_id
   api_gateway_execution_arn = ""
 
   tags = local.common_tags
@@ -116,15 +114,13 @@ module "lambda" {
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
-  project_name                      = var.project_name
-  environment                       = var.environment
-  stage_name                        = var.api_stage_name
-  api_handler_function_name         = module.lambda.api_handler_function_name
-  api_handler_invoke_arn            = module.lambda.api_handler_invoke_arn
-  jwt_authorizer_invoke_arn         = module.lambda.jwt_authorizer_invoke_arn
-  cognito_user_pool_id              = module.cognito.user_pool_id
-  document_review_api_function_name = module.lambda.document_review_api_function_name
-  document_review_api_invoke_arn    = module.lambda.document_review_api_invoke_arn
+  project_name              = var.project_name
+  environment               = var.environment
+  stage_name                = var.api_stage_name
+  api_handler_function_name = module.lambda.api_handler_function_name
+  api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
+  jwt_authorizer_invoke_arn = module.lambda.jwt_authorizer_invoke_arn
+  cognito_user_pool_id      = module.cognito.user_pool_id
 
   tags = local.common_tags
 
@@ -139,12 +135,10 @@ module "cloudwatch" {
   environment               = var.environment
   api_gateway_name          = module.api_gateway.api_gateway_name
   api_handler_function_name = module.lambda.api_handler_function_name
-  # Use Lambda function for document processing instead of container
-  document_processor_function_name = module.lambda.document_review_api_function_name
-  dynamodb_table_name              = module.dynamodb.table_name
-  s3_bucket_name                   = module.s3.bucket_name
-  alert_email                      = var.alert_email
-  log_retention_days               = var.log_retention_days
+  dynamodb_table_name       = module.dynamodb.table_name
+  s3_bucket_name            = module.s3.bucket_name
+  alert_email               = var.alert_email
+  log_retention_days        = var.log_retention_days
   enable_detailed_monitoring       = var.enable_monitoring
   high_error_threshold             = 10
   high_latency_threshold           = 10000

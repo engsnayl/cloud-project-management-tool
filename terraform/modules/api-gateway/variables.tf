@@ -36,16 +36,6 @@ variable "cognito_user_pool_id" {
   type        = string
 }
 
-variable "document_review_api_function_name" {
-  description = "Name of the document review API Lambda function"
-  type        = string
-}
-
-variable "document_review_api_invoke_arn" {
-  description = "Invoke ARN of the document review API Lambda function"
-  type        = string
-}
-
 variable "enable_cors" {
   description = "Enable CORS for the API"
   type        = bool

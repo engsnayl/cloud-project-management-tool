@@ -95,79 +95,17 @@ resource "null_resource" "create_api_handler_zip" {
 
 resource "null_resource" "create_jwt_authorizer_zip" {
   triggers = {
-    zip_path          = var.jwt_authorizer_zip_path
-    source_hash       = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda_function.py") : ""
-    requirements_hash = fileexists("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt") ? filemd5("/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt") : ""
+    zip_path = var.jwt_authorizer_zip_path
   }
 
   provisioner "local-exec" {
     command     = <<-EOT
-      set -e
-      SOURCE_DIR="/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer"
-      BUILD_DIR="/tmp/jwt-authorizer-build-$$"
-      ZIP_PATH="/workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer/lambda-deployment.zip"
-      
-      # Check if source files exist
-      if [ -f "$SOURCE_DIR/lambda_function.py" ] && [ -f "$SOURCE_DIR/requirements.txt" ]; then
-        echo "Building JWT authorizer with dependencies..."
-        
-        # Create temporary build directory
-        mkdir -p "$BUILD_DIR"
-        
-        # Copy source files
-        cp "$SOURCE_DIR/lambda_function.py" "$BUILD_DIR/"
-        cp "$SOURCE_DIR/requirements.txt" "$BUILD_DIR/"
-        
-        # Install dependencies for Linux Lambda environment
-        cd "$BUILD_DIR"
-        pip install -r requirements.txt -t . --no-deps
-        
-        # Create zip excluding unnecessary files
-        zip -r "$ZIP_PATH" . -x "*.pyc" "__pycache__/*" "*.dist-info/RECORD" "*.dist-info/INSTALLER" "*.egg-info/*"
-        
-        echo "JWT authorizer zip created with dependencies"
-      else
-        echo "Source files not found, creating basic JWT authorizer..."
-        # Fallback: create basic authorizer
-        cd /workspaces/cloud-project-management-tool/src/lambdas/jwt-authorizer
-        echo 'def lambda_handler(event, context):
-    return {
-        "principalId": "user", 
-        "policyDocument": {
-            "Version": "2012-10-17", 
-            "Statement": [{
-                "Action": "execute-api:Invoke", 
-                "Effect": "Allow", 
-                "Resource": event.get("methodArn", "")
-            }]
-        }
-    }' > lambda_function.py
-        zip lambda-deployment.zip lambda_function.py
-        rm lambda_function.py
+      mkdir -p $(dirname ${var.jwt_authorizer_zip_path})
+      cd $(dirname ${var.jwt_authorizer_zip_path})
+      if [ ! -f lambda_function.py ]; then
+        echo 'def lambda_handler(event, context):\n    return {"principalId": "user", "policyDocument": {"Version": "2012-10-17", "Statement": [{"Action": "execute-api:Invoke", "Effect": "Allow", "Resource": "*"}]}}' > lambda_function.py
       fi
-      
-      # Cleanup build directory
-      rm -rf "$BUILD_DIR"
-    EOT
-    interpreter = ["bash", "-c"]
-  }
-}
-
-resource "null_resource" "create_document_review_api_zip" {
-  triggers = {
-    zip_path = var.document_review_api_zip_path
-  }
-
-  provisioner "local-exec" {
-    command     = <<-EOT
-      cd /workspaces/cloud-project-management-tool/src/lambdas/document-review-api
-      if [ -f lambda_function.py ]; then
-        zip -r ../document-review-api.zip lambda_function.py
-      else
-        echo 'def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Document Review API"}' > lambda_function.py
-        zip -r ../document-review-api.zip lambda_function.py
-        rm lambda_function.py
-      fi
+      zip -r $(basename ${var.jwt_authorizer_zip_path}) lambda_function.py
     EOT
     interpreter = ["bash", "-c"]
   }
@@ -216,6 +154,8 @@ resource "aws_lambda_function" "jwt_authorizer" {
   runtime       = "python3.9"
   timeout       = 10
 
+  depends_on = [null_resource.create_jwt_authorizer_zip]
+
   environment {
     variables = {
       COGNITO_USER_POOL_ID  = var.cognito_user_pool_id != "" ? var.cognito_user_pool_id : "placeholder"
@@ -228,35 +168,6 @@ resource "aws_lambda_function" "jwt_authorizer" {
     Name        = "${var.project_name}-${var.environment}-jwt-authorizer"
     Environment = var.environment
     Purpose     = "authentication"
-  })
-
-  depends_on = [null_resource.create_jwt_authorizer_zip]
-}
-
-# Document Review API Lambda Function
-resource "aws_lambda_function" "document_review_api" {
-  filename      = var.document_review_api_zip_path
-  function_name = "${var.project_name}-${var.environment}-document-review-api"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.9"
-  timeout       = 30
-  memory_size   = 512
-
-  depends_on = [null_resource.create_document_review_api_zip]
-
-  environment {
-    variables = {
-      DYNAMODB_TABLE_NAME  = var.dynamodb_table_name
-      EVENTBRIDGE_BUS_NAME = var.eventbridge_bus_name != "" ? var.eventbridge_bus_name : "default"
-      ENVIRONMENT          = var.environment
-    }
-  }
-
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-${var.environment}-document-review-api"
-    Environment = var.environment
-    Purpose     = "document-review"
   })
 }
 
@@ -277,16 +188,6 @@ resource "aws_cloudwatch_log_group" "jwt_authorizer" {
 
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-jwt-authorizer-logs"
-    Environment = var.environment
-  })
-}
-
-resource "aws_cloudwatch_log_group" "document_review_api" {
-  name              = "/aws/lambda/${aws_lambda_function.document_review_api.function_name}"
-  retention_in_days = var.log_retention_days
-
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}-${var.environment}-document-review-api-logs"
     Environment = var.environment
   })
 }

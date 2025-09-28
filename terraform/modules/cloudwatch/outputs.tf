@@ -39,7 +39,6 @@ output "log_group_names" {
   description = "Names of created CloudWatch log groups"
   value = {
     api_handler        = aws_cloudwatch_log_group.api_handler_logs.name
-    document_processor = aws_cloudwatch_log_group.document_processor_logs.name
   }
 }
 

@@ -20,10 +20,6 @@ variable "api_handler_function_name" {
   type        = string
 }
 
-variable "document_processor_function_name" {
-  description = "Name of the document processor Lambda function"
-  type        = string
-}
 
 variable "dynamodb_table_name" {
   description = "Name of the DynamoDB table"

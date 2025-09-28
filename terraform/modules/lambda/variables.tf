@@ -46,7 +46,7 @@ variable "enable_vpc_access" {
   default     = false
 }
 
-# Lambda deployment packages - REMOVED document_processor_zip_path
+# Lambda deployment packages
 variable "api_handler_zip_path" {
   description = "Path to the API handler Lambda deployment package"
   type        = string
@@ -57,12 +57,7 @@ variable "jwt_authorizer_zip_path" {
   type        = string
 }
 
-variable "document_review_api_zip_path" {
-  description = "Path to the document review API Lambda deployment package"
-  type        = string
-}
-
-# EventBridge integration - Optional to break circular dependency
+# EventBridge integration
 variable "eventbridge_bus_name" {
   description = "Name of the EventBridge bus"
   type        = string
@@ -75,7 +70,7 @@ variable "log_retention_days" {
   default     = 14
 }
 
-# Cognito integration - MAKE THESE OPTIONAL
+# Cognito integration
 variable "cognito_user_pool_id" {
   description = "Cognito User Pool ID for JWT validation"
   type        = string

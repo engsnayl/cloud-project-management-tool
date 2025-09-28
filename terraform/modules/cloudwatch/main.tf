@@ -191,7 +191,6 @@ resource "aws_cloudwatch_dashboard" "cost_monitoring" {
         properties = {
           metrics = [
             ["AWS/Lambda", "Duration", "FunctionName", "${var.api_handler_function_name}"],
-            [".", "Duration", "FunctionName", "${var.document_processor_function_name}"]
           ]
           view    = "timeSeries"
           stacked = false
@@ -295,19 +294,12 @@ resource "aws_cloudwatch_log_group" "api_handler_logs" {
   tags              = var.tags
 }
 
-resource "aws_cloudwatch_log_group" "document_processor_logs" {
-  name              = "/aws/lambda/${var.document_processor_function_name}"
-  retention_in_days = var.log_retention_days
-  tags              = var.tags
-}
-
 # Custom Log Insights Queries
 resource "aws_cloudwatch_query_definition" "error_analysis" {
   name = "${var.project_name}-${var.environment}-error-analysis"
 
   log_group_names = [
     aws_cloudwatch_log_group.api_handler_logs.name,
-    aws_cloudwatch_log_group.document_processor_logs.name
   ]
 
   query_string = <<EOF
