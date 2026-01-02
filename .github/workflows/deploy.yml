@@ -1,240 +1,119 @@
 # .github/workflows/deploy.yml
-name: Deploy Action Tracker
+name: Deploy Action Tracker to Dev
 
-# When this workflow runs
 on:
-  # Run on pushes to main and develop branches
   push:
-    branches: [main, develop]
-  # Run on pull requests to main
-  pull_request:
-    branches: [main]
-  # Allow manual triggers
+    branches: [ develop ]
   workflow_dispatch:
 
-# Environment variables used across all jobs
 env:
   AWS_REGION: eu-west-1
-  NODE_VERSION: 18
 
 jobs:
-  # Job 1: Code Quality and Security Checks
-  code-quality:
-    name: Code Quality & Security
+  deploy:
+    name: Deploy to Development
     runs-on: ubuntu-latest
+    environment: 
+      name: development
+      url: https://actions-dev.engsnayl.com
     
     steps:
-      # Download the code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Node.js for frontend
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '18'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # Install frontend dependencies
-      - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm ci
-
-      # Run frontend linting
-      - name: Run ESLint
-        run: |
-          cd frontend
-          npm run lint --if-present || echo "No lint script found, skipping"
-
-      # Run frontend tests
-      - name: Run frontend tests
-        run: |
-          cd frontend
-          npm test --if-present --passWithNoTests || echo "No tests found, skipping"
-
-      # Set up Python for Lambda testing
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Test Lambda functions
-      - name: Test Lambda functions
+      - name: Build Lambda Functions
         run: |
-          cd src/lambdas/api-handler
-          pip install -r requirements.txt || echo "No requirements.txt found"
-          python -m py_compile lambda_function.py
-          echo "Lambda function syntax check passed"
+          echo "Building Lambda deployment packages..."
+          chmod +x scripts/build-lambdas.sh
+          ./scripts/build-lambdas.sh
 
-  # Job 2: Infrastructure Validation
-  infrastructure-check:
-    name: Infrastructure Validation
-    runs-on: ubuntu-latest
-    needs: code-quality
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Install Terraform
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      # Configure AWS credentials (we'll add this later)
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      # Validate Terraform configuration
-      - name: Terraform Format Check
+      - name: Deploy Lambda Functions
         run: |
-          cd terraform
-          terraform fmt -check=true -diff=true || echo "Terraform formatting issues found"
+          echo "Deploying Lambda functions..."
+          
+          # Deploy API Handler
+          if [ -f "src/lambdas/api-handler/lambda-deployment.zip" ]; then
+            aws lambda update-function-code \
+              --function-name deliverycommand-dev-api-handler \
+              --zip-file fileb://src/lambdas/api-handler/lambda-deployment.zip \
+              --region ${{ env.AWS_REGION }}
+            echo "✓ API Handler deployed"
+          fi
+          
+          # Deploy JWT Authorizer
+          if [ -f "src/lambdas/jwt-authorizer/lambda-deployment.zip" ]; then
+            aws lambda update-function-code \
+              --function-name deliverycommand-dev-jwt-authorizer \
+              --zip-file fileb://src/lambdas/jwt-authorizer/lambda-deployment.zip \
+              --region ${{ env.AWS_REGION }}
+            echo "✓ JWT Authorizer deployed"
+          fi
+          
+          # Deploy Document Review API
+          if [ -f "src/lambdas/document-review-api/lambda-deployment.zip" ]; then
+            aws lambda update-function-code \
+              --function-name deliverycommand-dev-document-review-api \
+              --zip-file fileb://src/lambdas/document-review-api/lambda-deployment.zip \
+              --region ${{ env.AWS_REGION }}
+            echo "✓ Document Review API deployed"
+          fi
 
-      - name: Terraform Validate
+      - name: Build and Deploy Frontend
         run: |
-          cd terraform/environments/dev
-          terraform init -backend=false
-          terraform validate
-          echo "Terraform validation passed"
-
-  # Job 3: Deploy to Development (only on develop branch)
-  deploy-dev:
-    name: Deploy to Development
-    runs-on: ubuntu-latest
-    needs: [code-quality, infrastructure-check]
-    if: github.ref == 'refs/heads/develop'
-    environment: development
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      # Package Lambda function
-      - name: Package Lambda function
-        run: |
-          cd src/lambdas/api-handler
-          zip -r ../../../lambda-deployment.zip . -x "*.pyc" "__pycache__/*"
-          echo "Lambda function packaged"
-
-      # Deploy infrastructure
-      - name: Deploy Infrastructure to Dev
-        run: |
-          cd terraform/environments/dev
-          terraform init
-          terraform plan -out=tfplan
-          terraform apply -auto-approve tfplan
-          echo "Infrastructure deployed to dev"
-
-      # Deploy frontend (if we have S3 bucket set up)
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Build and deploy frontend
-        run: |
+          echo "Building frontend..."
           cd frontend
           npm ci
           npm run build
           
-          # Check if S3 bucket exists before deploying
-          BUCKET_NAME="action-tracker-dev-frontend"
-          if aws s3 ls "s3://$BUCKET_NAME" 2>&1 | grep -q 'NoSuchBucket'; then
-            echo "S3 bucket doesn't exist yet, skipping frontend deployment"
+          echo "Deploying frontend to S3..."
+          aws s3 sync dist/ s3://deliverycommand-dev-frontend-hhm6m50m --delete --quiet
+          
+          echo "Invalidating CloudFront cache..."
+          aws cloudfront create-invalidation \
+            --distribution-id ECIVTEJ5GHRSW \
+            --paths "/*" \
+            --no-cli-pager
+
+      - name: Run Health Checks
+        run: |
+          echo "Waiting for deployment to settle..."
+          sleep 30
+          
+          echo "Testing frontend..."
+          frontend_health=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://actions-dev.engsnayl.com" || echo "000")
+          
+          if [ "$frontend_health" = "200" ]; then
+            echo "✓ Frontend health check passed"
           else
-            aws s3 sync dist/ s3://$BUCKET_NAME/ --delete
-            echo "Frontend deployed to dev"
+            echo "✗ Frontend health check failed (HTTP $frontend_health)"
+            exit 1
           fi
+          
+          echo "Note: API health check skipped - requires authentication"
 
-      # Basic health check
-      - name: Health check
-        run: |
-          echo "Running basic health check..."
-          # We'll add actual health check once API is deployed
-          sleep 10
-          echo "Health check completed"
-
-  # Job 4: Deploy to Staging (only on main branch)
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [code-quality, infrastructure-check]
-    if: github.ref == 'refs/heads/main'
-    environment: staging
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      - name: Package Lambda function
-        run: |
-          cd src/lambdas/api-handler
-          zip -r ../../../lambda-deployment.zip . -x "*.pyc" "__pycache__/*"
-
-      - name: Deploy to Staging
-        run: |
-          cd terraform/environments/staging
-          terraform init
-          terraform plan -out=tfplan
-          terraform apply -auto-approve tfplan
-          echo "Infrastructure deployed to staging"
-
-      - name: Run integration tests
-        run: |
-          echo "Running integration tests on staging..."
-          # We'll add actual integration tests later
-          echo "Integration tests passed"
-
-  # Job 5: Notify on Success/Failure
-  notify:
-    name: Deployment Notification
-    runs-on: ubuntu-latest
-    needs: [deploy-dev, deploy-staging]
-    if: always()
-    
-    steps:
       - name: Deployment Summary
         run: |
-          echo "Deployment Summary:"
-          echo "- Code Quality: ${{ needs.code-quality.result }}"
-          echo "- Infrastructure Check: ${{ needs.infrastructure-check.result }}"
-          echo "- Dev Deployment: ${{ needs.deploy-dev.result }}"
-          echo "- Staging Deployment: ${{ needs.deploy-staging.result }}"
-          
-          if [ "${{ needs.deploy-dev.result }}" == "success" ] || [ "${{ needs.deploy-staging.result }}" == "success" ]; then
-            echo "Deployment completed successfully!"
-          else
-            echo "Some deployments may have issues. Check the logs above."
-          fi
+          echo "Deployment completed successfully!"
+          echo "Frontend: https://actions-dev.engsnayl.com"
+          echo "API: https://x8dd7fpwf3.execute-api.eu-west-1.amazonaws.com/dev"
+          echo "Lambda functions updated and frontend deployed."

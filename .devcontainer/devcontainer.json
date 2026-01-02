@@ -1,3 +1,4 @@
+///workspaces/cloud-project-management-tool/.devcontainer/devcontainer.json
 {
   "name": "DeliveryCommand Dev Environment",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",

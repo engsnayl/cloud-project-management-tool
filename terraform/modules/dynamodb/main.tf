@@ -2,10 +2,10 @@
 
 # Main application table - single table design
 resource "aws_dynamodb_table" "main" {
-  name           = "${var.project_name}-${var.environment}-main"
-  billing_mode   = "PAY_PER_REQUEST"  # Cost-effective for dev
-  hash_key       = "PK"
-  range_key      = "SK"
+  name         = "${var.project_name}-${var.environment}-main"
+  billing_mode = "PAY_PER_REQUEST" # Cost-effective for dev
+  hash_key     = "PK"
+  range_key    = "SK"
 
   attribute {
     name = "PK"
@@ -13,7 +13,7 @@ resource "aws_dynamodb_table" "main" {
   }
 
   attribute {
-    name = "SK" 
+    name = "SK"
     type = "S"
   }
 
@@ -32,7 +32,7 @@ resource "aws_dynamodb_table" "main" {
     name            = "GSI1"
     hash_key        = "GSI1PK"
     range_key       = "GSI1SK"
-    projection_type = "ALL"  # Project all attributes
+    projection_type = "ALL" # Project all attributes
   }
 
   # Point-in-time recovery

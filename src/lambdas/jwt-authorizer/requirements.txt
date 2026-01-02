@@ -1,0 +1,3 @@
+#/cloud-project-management-tool/src/lambdas/jwt-authorizer/requirements.txt
+PyJWT[crypto]==2.8.0
+requests==2.31.0

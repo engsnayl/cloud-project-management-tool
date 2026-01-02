@@ -34,35 +34,40 @@ resource "aws_iam_role" "eventbridge_role" {
   })
 }
 
-# IAM Policy for EventBridge to invoke Step Functions and Lambda
+# IAM Policy for EventBridge to invoke Step Functions and Lambda - FIXED
 resource "aws_iam_role_policy" "eventbridge_policy" {
+  count = var.api_handler_function_arn != "" || var.document_processor_function_arn != "" || var.requirement_approval_workflow_arn != "" || var.document_processing_workflow_arn != "" ? 1 : 0
   name = "${var.project_name}-${var.environment}-eventbridge-policy"
   role = aws_iam_role.eventbridge_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "states:StartExecution"
-        ]
-        Resource = [
-          var.requirement_approval_workflow_arn,
-          var.document_processing_workflow_arn
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:InvokeFunction"
-        ]
-        Resource = [
-          var.api_handler_function_arn,
-          var.document_processor_function_arn
-        ]
-      }
-    ]
+    Statement = concat(
+      var.api_handler_function_arn != "" || var.document_processor_function_arn != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "lambda:InvokeFunction"
+          ]
+          Resource = compact([
+            var.api_handler_function_arn != "" ? var.api_handler_function_arn : null,
+            var.document_processor_function_arn != "" ? var.document_processor_function_arn : null
+          ])
+        }
+      ] : [],
+      var.requirement_approval_workflow_arn != "" || var.document_processing_workflow_arn != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "states:StartExecution"
+          ]
+          Resource = compact([
+            var.requirement_approval_workflow_arn != "" ? var.requirement_approval_workflow_arn : null,
+            var.document_processing_workflow_arn != "" ? var.document_processing_workflow_arn : null
+          ])
+        }
+      ] : []
+    )
   })
 }
 
@@ -87,8 +92,9 @@ resource "aws_cloudwatch_event_rule" "requirement_created" {
   })
 }
 
-# EventBridge Target: Requirement Created -> Step Functions
+# EventBridge Target: Requirement Created -> Step Functions - FIXED
 resource "aws_cloudwatch_event_target" "requirement_created_target" {
+  count          = var.requirement_approval_workflow_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.requirement_created.name
   target_id      = "RequirementCreatedTarget"
   arn            = var.requirement_approval_workflow_arn
@@ -132,8 +138,9 @@ resource "aws_cloudwatch_event_rule" "document_uploaded" {
   })
 }
 
-# EventBridge Target: Document Uploaded -> Step Functions
+# EventBridge Target: Document Uploaded -> Step Functions - FIXED
 resource "aws_cloudwatch_event_target" "document_uploaded_target" {
+  count          = var.document_processing_workflow_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.document_uploaded.name
   target_id      = "DocumentUploadedTarget"
   arn            = var.document_processing_workflow_arn
@@ -142,10 +149,10 @@ resource "aws_cloudwatch_event_target" "document_uploaded_target" {
 
   input_transformer {
     input_paths = {
-      bucketName   = "$.detail.bucketName"
-      objectKey    = "$.detail.objectKey"
-      documentId   = "$.detail.documentId"
-      fileType     = "$.detail.fileType"
+      bucketName = "$.detail.bucketName"
+      objectKey  = "$.detail.objectKey"
+      documentId = "$.detail.documentId"
+      fileType   = "$.detail.fileType"
     }
     input_template = jsonencode({
       Records = [
@@ -189,8 +196,9 @@ resource "aws_cloudwatch_event_rule" "requirement_status_changed" {
   })
 }
 
-# EventBridge Target: Status Changed -> Lambda Notification
+# EventBridge Target: Status Changed -> Lambda Notification - FIXED TO BE CONDITIONAL
 resource "aws_cloudwatch_event_target" "requirement_status_changed_target" {
+  count          = var.api_handler_function_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.requirement_status_changed.name
   target_id      = "RequirementStatusChangedTarget"
   arn            = var.api_handler_function_arn
@@ -239,8 +247,9 @@ resource "aws_cloudwatch_event_rule" "workflow_completed" {
   })
 }
 
-# EventBridge Target: Workflow Completed -> Analytics Update
+# EventBridge Target: Workflow Completed -> Analytics Update - FIXED TO BE CONDITIONAL
 resource "aws_cloudwatch_event_target" "workflow_completed_target" {
+  count          = var.api_handler_function_arn != "" ? 1 : 0
   rule           = aws_cloudwatch_event_rule.workflow_completed.name
   target_id      = "WorkflowCompletedTarget"
   arn            = var.api_handler_function_arn
@@ -248,21 +257,21 @@ resource "aws_cloudwatch_event_target" "workflow_completed_target" {
 
   input_transformer {
     input_paths = {
-      workflowType    = "$.detail.workflowType"
-      status          = "$.detail.status"
-      executionArn    = "$.detail.executionArn"
-      duration        = "$.detail.duration"
-      requirementId   = "$.detail.requirementId"
+      workflowType  = "$.detail.workflowType"
+      status        = "$.detail.status"
+      executionArn  = "$.detail.executionArn"
+      duration      = "$.detail.duration"
+      requirementId = "$.detail.requirementId"
     }
     input_template = jsonencode({
-      action          = "update-workflow-analytics"
-      workflowType    = "<workflowType>"
-      status          = "<status>"
-      executionArn    = "<executionArn>"
-      duration        = "<duration>"
-      requirementId   = "<requirementId>"
-      timestamp       = "$$.Execution.StartTime"
-      source          = "eventbridge"
+      action        = "update-workflow-analytics"
+      workflowType  = "<workflowType>"
+      status        = "<status>"
+      executionArn  = "<executionArn>"
+      duration      = "<duration>"
+      requirementId = "<requirementId>"
+      timestamp     = "$$.Execution.StartTime"
+      source        = "eventbridge"
     })
   }
 }
@@ -270,8 +279,8 @@ resource "aws_cloudwatch_event_target" "workflow_completed_target" {
 # Dead Letter Queue for Failed Events
 resource "aws_sqs_queue" "event_dlq" {
   name = "${var.project_name}-${var.environment}-event-dlq"
-  
-  message_retention_seconds = 1209600  # 14 days
+
+  message_retention_seconds  = 1209600 # 14 days
   visibility_timeout_seconds = 60
 
   tags = merge(var.tags, {
@@ -283,11 +292,11 @@ resource "aws_sqs_queue" "event_dlq" {
 
 # EventBridge Archive for Event Replay (Optional)
 resource "aws_cloudwatch_event_archive" "deliverycommand_archive" {
-  count              = var.enable_event_archive ? 1 : 0
-  name               = "${var.project_name}-${var.environment}-event-archive"
-  event_source_arn   = aws_cloudwatch_event_bus.deliverycommand.arn
-  retention_days     = var.event_archive_retention_days
-  description        = "Archive for DeliveryCommand events for replay capability"
+  count            = var.enable_event_archive ? 1 : 0
+  name             = "${var.project_name}-${var.environment}-event-archive"
+  event_source_arn = aws_cloudwatch_event_bus.deliverycommand.arn
+  retention_days   = var.event_archive_retention_days
+  description      = "Archive for DeliveryCommand events for replay capability"
 
   event_pattern = jsonencode({
     source = ["deliverycommand.requirements", "deliverycommand.documents", "deliverycommand.workflows"]

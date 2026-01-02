@@ -1,5 +1,4 @@
-# terraform/modules/api-gateway/outputs.tf
-
+#terraform/modules/api-gateway/outputs.tf
 output "api_gateway_id" {
   description = "ID of the API Gateway"
   value       = aws_api_gateway_rest_api.main.id
@@ -38,4 +37,8 @@ output "projects_endpoint" {
 output "stage_name" {
   description = "API Gateway stage name"
   value       = aws_api_gateway_stage.main.stage_name
+}
+output "api_gateway_name" {
+  description = "Name of the API Gateway"
+  value       = aws_api_gateway_rest_api.main.name
 }
