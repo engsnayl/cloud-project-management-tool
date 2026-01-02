@@ -118,11 +118,13 @@ output "jwt_authorizer_function_name" {
   value       = module.lambda.jwt_authorizer_function_name
 }
 
-# Monitoring Outputs
+/*
+# Monitoring Outputs - TEMPORARILY DISABLE CLOUDWATCH FOR COST SAVING
 output "alert_topic_arn" {
   description = "SNS alerts topic ARN"
   value       = module.cloudwatch.sns_alerts_topic_arn
 }
+*/
 
 # Security Outputs
 output "cloudtrail_arn" {

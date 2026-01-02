@@ -127,7 +127,8 @@ module "api_gateway" {
   depends_on = [module.lambda]
 }
 
-# CloudWatch Monitoring Module
+# CloudWatch Monitoring Module - DISABLED TEMPORARILY TO MINIMISE COST
+/* 
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
 
@@ -153,7 +154,7 @@ module "cloudwatch" {
   tags = local.common_tags
 
   depends_on = [module.api_gateway, module.lambda, module.dynamodb, module.s3]
-}
+} */
 
 # CloudTrail Module
 module "cloudtrail" {
