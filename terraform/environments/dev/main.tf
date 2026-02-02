@@ -98,6 +98,7 @@ module "lambda" {
   log_retention_days   = var.log_retention_days
   eventbridge_bus_name = module.eventbridge.event_bus_name
   eventbridge_bus_arn  = module.eventbridge.event_bus_arn
+  allowed_origins      = join(",", var.allowed_origins)
 
   # Lambda zip paths for deployed functions
   api_handler_zip_path    = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"

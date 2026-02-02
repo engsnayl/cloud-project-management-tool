@@ -169,9 +169,11 @@ resource "aws_lambda_function" "api_handler" {
 
   environment {
     variables = {
-      DYNAMODB_TABLE = var.dynamodb_table_name
-      S3_BUCKET      = var.s3_bucket_name
-      ENVIRONMENT    = var.environment
+      DYNAMODB_TABLE  = var.dynamodb_table_name
+      S3_BUCKET       = var.s3_bucket_name
+      DOCUMENT_BUCKET = var.s3_bucket_name
+      ENVIRONMENT     = var.environment
+      ALLOWED_ORIGINS = var.allowed_origins
     }
   }
 
