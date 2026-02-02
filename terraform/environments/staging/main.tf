@@ -19,12 +19,14 @@ data "aws_route53_zone" "main" {
 module "vpc" {
   source = "../../modules/vpc"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  cidr_block           = var.vpc_cidr
-  public_subnet_count  = var.public_subnet_count
-  private_subnet_count = var.private_subnet_count
-  enable_nat_gateway   = var.enable_nat_gateway
+  project_name            = var.project_name
+  environment             = var.environment
+  cidr_block              = var.vpc_cidr
+  public_subnet_count     = var.public_subnet_count
+  private_subnet_count    = var.private_subnet_count
+  enable_nat_gateway      = var.enable_nat_gateway
+  enable_flow_logs        = var.enable_flow_logs
+  flow_log_retention_days = var.log_retention_days
 
   tags = local.common_tags
 }
@@ -36,6 +38,7 @@ module "dynamodb" {
   project_name                  = var.project_name
   environment                   = var.environment
   enable_point_in_time_recovery = var.enable_point_in_time_recovery
+  deletion_protection           = var.deletion_protection
 
   tags = local.common_tags
 }
@@ -58,10 +61,9 @@ module "s3" {
 module "cognito" {
   source = "../../modules/cognito"
 
-  project_name    = var.project_name
-  environment     = var.environment
-  frontend_url    = var.frontend_url
-  api_gateway_arn = "*"
+  project_name = var.project_name
+  environment  = var.environment
+  frontend_url = var.frontend_url
 
   tags = local.common_tags
 }
@@ -95,6 +97,7 @@ module "lambda" {
   s3_bucket_arn        = module.s3.bucket_arn
   log_retention_days   = var.log_retention_days
   eventbridge_bus_name = module.eventbridge.event_bus_name
+  eventbridge_bus_arn  = module.eventbridge.event_bus_arn
 
   # Lambda zip paths for deployed functions
   api_handler_zip_path    = "${path.root}/../../../src/lambdas/api-handler/lambda-deployment.zip"
@@ -106,8 +109,6 @@ module "lambda" {
   api_gateway_execution_arn = ""
 
   tags = local.common_tags
-
-  depends_on = [module.vpc, module.dynamodb, module.s3, module.eventbridge, module.cognito]
 }
 
 # API Gateway Module
@@ -121,14 +122,33 @@ module "api_gateway" {
   api_handler_invoke_arn    = module.lambda.api_handler_invoke_arn
   jwt_authorizer_invoke_arn = module.lambda.jwt_authorizer_invoke_arn
   cognito_user_pool_id      = module.cognito.user_pool_id
+  log_retention_days        = var.log_retention_days
+  throttle_rate_limit       = 100
+  throttle_burst_limit      = 200
 
   tags = local.common_tags
+}
 
-  depends_on = [module.lambda]
+# Cognito authenticated user execute-api permission
+# (Separated from cognito module to avoid circular dependency)
+resource "aws_iam_role_policy" "cognito_execute_api" {
+  name = "${var.project_name}-${var.environment}-cognito-execute-api"
+  role = module.cognito.authenticated_role_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["execute-api:Invoke"]
+        Resource = "${module.api_gateway.api_gateway_execution_arn}/*"
+      }
+    ]
+  })
 }
 
 # CloudWatch Monitoring Module - DISABLED TEMPORARILY TO MINIMISE COST
-/* 
+/*
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
 
@@ -152,8 +172,6 @@ module "cloudwatch" {
   api_latency_threshold            = 2000
 
   tags = local.common_tags
-
-  depends_on = [module.api_gateway, module.lambda, module.dynamodb, module.s3]
 } */
 
 # CloudTrail Module
@@ -212,6 +230,4 @@ module "frontend_hosting" {
   providers = {
     aws.us_east_1 = aws.us_east_1
   }
-
-  depends_on = [module.api_gateway]
 }

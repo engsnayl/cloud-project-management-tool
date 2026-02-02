@@ -37,8 +37,8 @@ resource "aws_iam_role" "eventbridge_role" {
 # IAM Policy for EventBridge to invoke Step Functions and Lambda - FIXED
 resource "aws_iam_role_policy" "eventbridge_policy" {
   count = var.api_handler_function_arn != "" || var.document_processor_function_arn != "" || var.requirement_approval_workflow_arn != "" || var.document_processing_workflow_arn != "" ? 1 : 0
-  name = "${var.project_name}-${var.environment}-eventbridge-policy"
-  role = aws_iam_role.eventbridge_role.id
+  name  = "${var.project_name}-${var.environment}-eventbridge-policy"
+  role  = aws_iam_role.eventbridge_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"

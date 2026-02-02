@@ -50,9 +50,21 @@ variable "enable_nat_gateway" {
   default     = false
 }
 
+variable "enable_flow_logs" {
+  description = "Enable VPC flow logs"
+  type        = bool
+  default     = false
+}
+
 # Database Configuration
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB"
+  type        = bool
+  default     = false
+}
+
+variable "deletion_protection" {
+  description = "Enable deletion protection for DynamoDB table"
   type        = bool
   default     = false
 }
@@ -79,7 +91,7 @@ variable "document_retention_days" {
 variable "allowed_origins" {
   description = "CORS allowed origins"
   type        = list(string)
-  default     = ["*"]
+  default     = ["http://localhost:3000", "https://actions-dev.engsnayl.com"]
 }
 
 # API Configuration

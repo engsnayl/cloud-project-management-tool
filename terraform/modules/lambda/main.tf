@@ -1,8 +1,29 @@
 # terraform/modules/lambda/main.tf
 
-# IAM role for Lambda functions
-resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-${var.environment}-lambda-role"
+# State migration: rename existing role to api_handler_role
+moved {
+  from = aws_iam_role.lambda_role
+  to   = aws_iam_role.api_handler_role
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.lambda_basic
+  to   = aws_iam_role_policy_attachment.api_handler_basic
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.lambda_vpc
+  to   = aws_iam_role_policy_attachment.api_handler_vpc
+}
+
+moved {
+  from = aws_iam_role_policy.lambda_custom
+  to   = aws_iam_role_policy.api_handler_custom
+}
+
+# IAM role for API Handler Lambda function
+resource "aws_iam_role" "api_handler_role" {
+  name = "${var.project_name}-${var.environment}-api-handler-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,23 +39,47 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
-# Basic Lambda execution policy
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
-  role       = aws_iam_role.lambda_role.name
+# IAM role for JWT Authorizer Lambda function
+resource "aws_iam_role" "jwt_authorizer_role" {
+  name = "${var.project_name}-${var.environment}-jwt-authorizer-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Basic Lambda execution policy - API Handler
+resource "aws_iam_role_policy_attachment" "api_handler_basic" {
+  role       = aws_iam_role.api_handler_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# VPC access policy for Lambda
-resource "aws_iam_role_policy_attachment" "lambda_vpc" {
+# Basic Lambda execution policy - JWT Authorizer
+resource "aws_iam_role_policy_attachment" "jwt_authorizer_basic" {
+  role       = aws_iam_role.jwt_authorizer_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# VPC access policy for API Handler Lambda only
+resource "aws_iam_role_policy_attachment" "api_handler_vpc" {
   count      = var.enable_vpc_access ? 1 : 0
-  role       = aws_iam_role.lambda_role.name
+  role       = aws_iam_role.api_handler_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-# Custom IAM policy for Lambda to access DynamoDB and S3
-resource "aws_iam_role_policy" "lambda_custom" {
-  name = "${var.project_name}-${var.environment}-lambda-policy"
-  role = aws_iam_role.lambda_role.id
+# Custom IAM policy for API Handler (DynamoDB, S3, EventBridge)
+resource "aws_iam_role_policy" "api_handler_custom" {
+  name = "${var.project_name}-${var.environment}-api-handler-policy"
+  role = aws_iam_role.api_handler_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -68,7 +113,7 @@ resource "aws_iam_role_policy" "lambda_custom" {
         Action = [
           "events:PutEvents"
         ]
-        Resource = "*"
+        Resource = var.eventbridge_bus_arn != "" ? var.eventbridge_bus_arn : "*"
       }
     ]
   })
@@ -115,9 +160,9 @@ resource "null_resource" "create_jwt_authorizer_zip" {
 resource "aws_lambda_function" "api_handler" {
   filename      = var.api_handler_zip_path
   function_name = "${var.project_name}-${var.environment}-api-handler"
-  role          = aws_iam_role.lambda_role.arn
+  role          = aws_iam_role.api_handler_role.arn
   handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.9"
+  runtime       = "python3.12"
   timeout       = 30
 
   depends_on = [null_resource.create_api_handler_zip]
@@ -149,9 +194,9 @@ resource "aws_lambda_function" "api_handler" {
 resource "aws_lambda_function" "jwt_authorizer" {
   filename      = var.jwt_authorizer_zip_path
   function_name = "${var.project_name}-${var.environment}-jwt-authorizer"
-  role          = aws_iam_role.lambda_role.arn
+  role          = aws_iam_role.jwt_authorizer_role.arn
   handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.9"
+  runtime       = "python3.12"
   timeout       = 10
 
   depends_on = [null_resource.create_jwt_authorizer_zip]

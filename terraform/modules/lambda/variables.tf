@@ -64,6 +64,12 @@ variable "eventbridge_bus_name" {
   default     = "default"
 }
 
+variable "eventbridge_bus_arn" {
+  description = "ARN of the EventBridge bus for scoped IAM permissions"
+  type        = string
+  default     = ""
+}
+
 variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number

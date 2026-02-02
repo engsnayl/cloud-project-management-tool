@@ -57,10 +57,10 @@ variable "reminder_timezone" {
   description = "Timezone for scheduled reminders (e.g., 'Europe/London', 'America/New_York')"
   type        = string
   default     = "UTC"
-  
+
   validation {
     condition = contains([
-      "UTC", "Europe/London", "America/New_York", "America/Los_Angeles", 
+      "UTC", "Europe/London", "America/New_York", "America/Los_Angeles",
       "America/Chicago", "Asia/Tokyo", "Australia/Sydney", "Europe/Paris"
     ], var.reminder_timezone)
     error_message = "Reminder timezone must be a valid timezone string."
@@ -71,7 +71,7 @@ variable "log_retention_days" {
   description = "CloudWatch log retention period in days"
   type        = number
   default     = 14
-  
+
   validation {
     condition = contains([
       1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653

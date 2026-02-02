@@ -1,8 +1,13 @@
 # terraform/modules/lambda/outputs.tf
 
-output "lambda_role_arn" {
-  description = "ARN of the Lambda execution role"
-  value       = aws_iam_role.lambda_role.arn
+output "api_handler_role_arn" {
+  description = "ARN of the API Handler Lambda execution role"
+  value       = aws_iam_role.api_handler_role.arn
+}
+
+output "jwt_authorizer_role_arn" {
+  description = "ARN of the JWT Authorizer Lambda execution role"
+  value       = aws_iam_role.jwt_authorizer_role.arn
 }
 
 # API Handler outputs

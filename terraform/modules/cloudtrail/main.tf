@@ -16,7 +16,7 @@ data "aws_caller_identity" "current" {}
 # S3 Bucket for CloudTrail Logs
 resource "aws_s3_bucket" "cloudtrail_logs" {
   bucket = "${var.project_name}-${var.environment}-cloudtrail-logs-${random_string.suffix.result}"
-  
+
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-cloudtrail-logs"
     Environment = var.environment
@@ -109,7 +109,7 @@ resource "aws_s3_bucket_policy" "cloudtrail_logs" {
         Resource = "${aws_s3_bucket.cloudtrail_logs.arn}/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
+            "s3:x-amz-acl"  = "bucket-owner-full-control"
             "AWS:SourceArn" = "arn:aws:cloudtrail:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:trail/${var.project_name}-${var.environment}-trail"
           }
         }
@@ -122,7 +122,7 @@ resource "aws_s3_bucket_policy" "cloudtrail_logs" {
 resource "aws_cloudwatch_log_group" "cloudtrail_logs" {
   name              = "/aws/cloudtrail/${var.project_name}-${var.environment}"
   retention_in_days = var.cloudwatch_log_retention_days
-  
+
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-cloudtrail-logs"
   })
@@ -188,8 +188,8 @@ resource "aws_cloudtrail" "main" {
   dynamic "event_selector" {
     for_each = var.enable_data_events ? [1] : []
     content {
-      read_write_type                 = "All"
-      include_management_events       = true
+      read_write_type                  = "All"
+      include_management_events        = true
       exclude_management_event_sources = var.exclude_management_event_sources
 
       # S3 data events
@@ -226,7 +226,7 @@ resource "aws_cloudtrail" "main" {
 # SNS Topic for CloudTrail Alerts
 resource "aws_sns_topic" "cloudtrail_alerts" {
   name = "${var.project_name}-${var.environment}-cloudtrail-alerts"
-  
+
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-cloudtrail-alerts"
   })

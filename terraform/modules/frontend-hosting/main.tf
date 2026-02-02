@@ -3,8 +3,8 @@
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+      source                = "hashicorp/aws"
+      version               = "~> 5.0"
       configuration_aliases = [aws.us_east_1]
     }
   }
@@ -43,23 +43,23 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = false # CloudFront bucket policy needs this
+  ignore_public_acls      = true
+  restrict_public_buckets = false # CloudFront OAC needs this
 }
 
 # S3 Bucket Policy for CloudFront
 resource "aws_s3_bucket_policy" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  bucket     = aws_s3_bucket.frontend.id
   depends_on = [aws_s3_bucket_public_access_block.frontend]
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontServicePrincipal"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontServicePrincipal"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
