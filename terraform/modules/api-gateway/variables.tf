@@ -54,6 +54,24 @@ variable "enable_api_key" {
   default     = false # Keep simple for dev
 }
 
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days for API Gateway access logs"
+  type        = number
+  default     = 14
+}
+
+variable "throttle_rate_limit" {
+  description = "API Gateway throttle rate limit (requests per second)"
+  type        = number
+  default     = 100
+}
+
+variable "throttle_burst_limit" {
+  description = "API Gateway throttle burst limit"
+  type        = number
+  default     = 200
+}
+
 variable "tags" {
   description = "Additional tags to apply to resources"
   type        = map(string)

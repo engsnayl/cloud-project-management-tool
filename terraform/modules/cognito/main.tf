@@ -218,7 +218,7 @@ resource "aws_iam_role" "authenticated" {
   tags = var.tags
 }
 
-# IAM policy for authenticated users
+# IAM policy for authenticated users (scoped to identity pool)
 resource "aws_iam_role_policy" "authenticated" {
   name = "${var.project_name}-${var.environment}-cognito-authenticated-policy"
   role = aws_iam_role.authenticated.id
@@ -229,21 +229,17 @@ resource "aws_iam_role_policy" "authenticated" {
       {
         Effect = "Allow"
         Action = [
-          "cognito-sync:*",
-          "cognito-identity:*"
+          "cognito-identity:GetId",
+          "cognito-identity:GetCredentialsForIdentity",
+          "cognito-identity:GetOpenIdToken"
         ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "execute-api:Invoke"
-        ]
-        Resource = var.api_gateway_arn == "*" ? "*" : "${var.api_gateway_arn}/*"
+        Resource = "arn:aws:cognito-identity:*:*:identitypool/${aws_cognito_identity_pool.main.id}"
       }
     ]
   })
 }
+# NOTE: execute-api:Invoke permission is added at the environment level
+# to avoid a circular dependency (cognito -> lambda -> api_gateway -> cognito)
 
 # Identity pool role attachment
 resource "aws_cognito_identity_pool_roles_attachment" "main" {

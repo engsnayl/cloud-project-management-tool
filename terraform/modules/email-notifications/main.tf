@@ -53,7 +53,7 @@ resource "aws_ses_configuration_set" "action_reminders" {
 resource "aws_ses_template" "daily_action_reminder" {
   name    = "${var.project_name}-${var.environment}-daily-reminder"
   subject = "Your Action Items for {{date}}"
-  
+
   html = <<-EOT
     <!DOCTYPE html>
     <html>
@@ -127,7 +127,7 @@ resource "aws_ses_template" "daily_action_reminder" {
 resource "aws_ses_template" "overdue_action_alert" {
   name    = "${var.project_name}-${var.environment}-overdue-alert"
   subject = "URGENT: {{overdue_count}} Overdue Action Items"
-  
+
   html = <<-EOT
     <!DOCTYPE html>
     <html>
@@ -192,21 +192,21 @@ resource "aws_ses_template" "overdue_action_alert" {
 
 # Lambda function for sending daily email reminders
 resource "aws_lambda_function" "email_reminder" {
-  filename         = "${path.module}/email-reminder.zip"
-  function_name    = "${var.project_name}-${var.environment}-email-reminder"
-  role            = aws_iam_role.email_reminder_role.arn
-  handler         = "lambda_function.lambda_handler"
-  runtime         = "python3.11"
-  timeout         = 300
+  filename      = "${path.module}/email-reminder.zip"
+  function_name = "${var.project_name}-${var.environment}-email-reminder"
+  role          = aws_iam_role.email_reminder_role.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 300
 
   environment {
     variables = {
-      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
-      SES_CONFIGURATION_SET = aws_ses_configuration_set.action_reminders.name
-      SENDER_EMAIL = var.sender_email
-      DASHBOARD_URL = var.dashboard_url
+      DYNAMODB_TABLE_NAME     = var.dynamodb_table_name
+      SES_CONFIGURATION_SET   = aws_ses_configuration_set.action_reminders.name
+      SENDER_EMAIL            = var.sender_email
+      DASHBOARD_URL           = var.dashboard_url
       DAILY_REMINDER_TEMPLATE = aws_ses_template.daily_action_reminder.name
-      OVERDUE_ALERT_TEMPLATE = aws_ses_template.overdue_action_alert.name
+      OVERDUE_ALERT_TEMPLATE  = aws_ses_template.overdue_action_alert.name
     }
   }
 
@@ -308,11 +308,11 @@ resource "aws_iam_role_policy_attachment" "email_reminder_policy" {
 
 # EventBridge Scheduler for daily reminders (9 AM weekdays)
 resource "aws_scheduler_schedule" "daily_reminder" {
-  name                         = "${var.project_name}-${var.environment}-daily-reminder"
-  description                  = "Send daily action reminders at 9 AM on weekdays"
-  state                        = var.enable_daily_reminders ? "ENABLED" : "DISABLED"
-  group_name                   = "default"
-  
+  name        = "${var.project_name}-${var.environment}-daily-reminder"
+  description = "Send daily action reminders at 9 AM on weekdays"
+  state       = var.enable_daily_reminders ? "ENABLED" : "DISABLED"
+  group_name  = "default"
+
   # Cron expression: 9 AM Monday-Friday UTC (adjust for your timezone)
   schedule_expression          = "cron(0 9 ? * MON-FRI *)"
   schedule_expression_timezone = var.reminder_timezone
@@ -326,7 +326,7 @@ resource "aws_scheduler_schedule" "daily_reminder" {
     role_arn = aws_iam_role.scheduler_role.arn
 
     input = jsonencode({
-      action = "send_daily_reminders"
+      action        = "send_daily_reminders"
       reminder_type = "daily"
     })
 
@@ -342,12 +342,12 @@ resource "aws_scheduler_schedule" "daily_reminder" {
 
 # EventBridge Scheduler for overdue alerts (daily at 10 AM)
 resource "aws_scheduler_schedule" "overdue_alert" {
-  count                        = var.enable_overdue_alerts ? 1 : 0
-  name                         = "${var.project_name}-${var.environment}-overdue-alert"
-  description                  = "Send overdue action alerts at 10 AM daily"
-  state                        = "ENABLED"
-  group_name                   = "default"
-  
+  count       = var.enable_overdue_alerts ? 1 : 0
+  name        = "${var.project_name}-${var.environment}-overdue-alert"
+  description = "Send overdue action alerts at 10 AM daily"
+  state       = "ENABLED"
+  group_name  = "default"
+
   # Cron expression: 10 AM daily UTC
   schedule_expression          = "cron(0 10 * * ? *)"
   schedule_expression_timezone = var.reminder_timezone
@@ -361,7 +361,7 @@ resource "aws_scheduler_schedule" "overdue_alert" {
     role_arn = aws_iam_role.scheduler_role.arn
 
     input = jsonencode({
-      action = "send_overdue_alerts"
+      action        = "send_overdue_alerts"
       reminder_type = "overdue"
     })
 
@@ -428,7 +428,7 @@ resource "aws_iam_role_policy" "scheduler_policy" {
 # Dead Letter Queue for failed email notifications
 resource "aws_sqs_queue" "email_dlq" {
   name                       = "${var.project_name}-${var.environment}-email-dlq"
-  message_retention_seconds  = 1209600  # 14 days
+  message_retention_seconds  = 1209600 # 14 days
   visibility_timeout_seconds = 300
 
   tags = merge(var.tags, {

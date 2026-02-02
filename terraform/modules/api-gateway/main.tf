@@ -68,8 +68,47 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_method.analytics_dashboard_get.id,
       aws_api_gateway_method.actions_id_put.id,
       aws_api_gateway_method.actions_id_delete.id,
+      aws_api_gateway_authorizer.jwt_authorizer.id,
     ]))
   }
+}
+
+# CloudWatch Log Group for API Gateway Access Logs
+resource "aws_cloudwatch_log_group" "api_gateway_access" {
+  name              = "/aws/apigateway/${var.project_name}-${var.environment}-api-access"
+  retention_in_days = var.log_retention_days
+
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-api-access-logs"
+    Environment = var.environment
+  })
+}
+
+# API Gateway Account-level CloudWatch role
+resource "aws_api_gateway_account" "main" {
+  cloudwatch_role_arn = aws_iam_role.api_gateway_cloudwatch.arn
+}
+
+resource "aws_iam_role" "api_gateway_cloudwatch" {
+  name = "${var.project_name}-${var.environment}-apigw-cw-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
+  role       = aws_iam_role.api_gateway_cloudwatch.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
 # API Gateway Stage
@@ -78,20 +117,59 @@ resource "aws_api_gateway_stage" "main" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   stage_name    = var.stage_name
 
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway_access.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip             = "$context.identity.sourceIp"
+      caller         = "$context.identity.caller"
+      user           = "$context.identity.user"
+      requestTime    = "$context.requestTime"
+      httpMethod     = "$context.httpMethod"
+      resourcePath   = "$context.resourcePath"
+      status         = "$context.status"
+      protocol       = "$context.protocol"
+      responseLength = "$context.responseLength"
+      errorMessage   = "$context.error.message"
+    })
+  }
+
+  depends_on = [aws_api_gateway_account.main]
+
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-${var.stage_name}"
     Environment = var.environment
   })
 }
 
-# Enable CloudWatch logging
+# Enable CloudWatch logging and throttling
 resource "aws_api_gateway_method_settings" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   stage_name  = aws_api_gateway_stage.main.stage_name
   method_path = "*/*"
 
   settings {
-    metrics_enabled = true
+    metrics_enabled        = true
+    logging_level          = "INFO"
+    data_trace_enabled     = false
+    throttling_rate_limit  = var.throttle_rate_limit
+    throttling_burst_limit = var.throttle_burst_limit
+  }
+}
+
+# Usage Plan for API throttling
+resource "aws_api_gateway_usage_plan" "main" {
+  name        = "${var.project_name}-${var.environment}-usage-plan"
+  description = "Usage plan for ${var.project_name} ${var.environment} API"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.main.id
+    stage  = aws_api_gateway_stage.main.stage_name
+  }
+
+  throttle_settings {
+    rate_limit  = var.throttle_rate_limit
+    burst_limit = var.throttle_burst_limit
   }
 }
 
@@ -241,7 +319,8 @@ resource "aws_api_gateway_method" "requirements_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.requirements.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "requirements_get" {
@@ -258,7 +337,8 @@ resource "aws_api_gateway_method" "requirements_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.requirements.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "requirements_post" {
@@ -276,7 +356,8 @@ resource "aws_api_gateway_method" "projects_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "projects_get" {
@@ -293,7 +374,8 @@ resource "aws_api_gateway_method" "projects_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "projects_post" {
@@ -311,7 +393,8 @@ resource "aws_api_gateway_method" "actions_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "actions_get" {
@@ -328,7 +411,8 @@ resource "aws_api_gateway_method" "actions_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "actions_post" {
@@ -346,7 +430,8 @@ resource "aws_api_gateway_method" "analytics_dashboard_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.analytics_dashboard.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "analytics_dashboard_get" {
@@ -364,7 +449,8 @@ resource "aws_api_gateway_method" "analytics_actions_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.analytics_actions.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "analytics_actions_get" {
@@ -382,7 +468,8 @@ resource "aws_api_gateway_method" "actions_id_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions_id.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "actions_id_get" {
@@ -399,7 +486,8 @@ resource "aws_api_gateway_method" "actions_id_put" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions_id.id
   http_method   = "PUT"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "actions_id_put" {
@@ -416,7 +504,8 @@ resource "aws_api_gateway_method" "actions_id_delete" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.actions_id.id
   http_method   = "DELETE"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "actions_id_delete" {
@@ -434,7 +523,8 @@ resource "aws_api_gateway_method" "projects_id_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects_id.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "projects_id_get" {
@@ -451,7 +541,8 @@ resource "aws_api_gateway_method" "projects_id_put" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects_id.id
   http_method   = "PUT"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "projects_id_put" {
@@ -468,7 +559,8 @@ resource "aws_api_gateway_method" "projects_id_delete" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.projects_id.id
   http_method   = "DELETE"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.jwt_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "projects_id_delete" {

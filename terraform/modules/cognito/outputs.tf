@@ -35,6 +35,11 @@ output "authenticated_role_arn" {
   value       = aws_iam_role.authenticated.arn
 }
 
+output "authenticated_role_id" {
+  description = "ID of the IAM role for authenticated users"
+  value       = aws_iam_role.authenticated.id
+}
+
 # OAuth URLs for frontend integration
 output "oauth_login_url" {
   description = "OAuth login URL"

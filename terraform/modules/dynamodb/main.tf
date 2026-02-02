@@ -2,10 +2,11 @@
 
 # Main application table - single table design
 resource "aws_dynamodb_table" "main" {
-  name         = "${var.project_name}-${var.environment}-main"
-  billing_mode = "PAY_PER_REQUEST" # Cost-effective for dev
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = "${var.project_name}-${var.environment}-main"
+  billing_mode                = "PAY_PER_REQUEST" # Cost-effective for dev
+  hash_key                    = "PK"
+  range_key                   = "SK"
+  deletion_protection_enabled = var.deletion_protection
 
   attribute {
     name = "PK"

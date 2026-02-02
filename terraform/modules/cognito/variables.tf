@@ -17,8 +17,9 @@ variable "frontend_url" {
 }
 
 variable "api_gateway_arn" {
-  description = "API Gateway ARN for authenticated user permissions"
+  description = "Deprecated - execute-api permission now managed at environment level"
   type        = string
+  default     = ""
 }
 
 variable "tags" {
