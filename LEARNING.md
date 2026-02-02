@@ -14,6 +14,10 @@ This guide walks you through the entire architecture of **DeliveryCommand**, a c
 6. [Security Decisions and Why They Matter](#6-security-decisions-and-why-they-matter)
 7. [Common Mistakes and How We Avoided Them](#7-common-mistakes-and-how-we-avoided-them)
 8. [How to Read and Navigate This Codebase](#8-how-to-read-and-navigate-this-codebase)
+9. [CI/CD Pipeline (GitHub Actions)](#9-cicd-pipeline-github-actions)
+10. [The Production Environment](#10-the-production-environment)
+11. [DynamoDB Access Patterns: Query vs Scan](#11-dynamodb-access-patterns-query-vs-scan)
+12. [Exercises and Next Steps](#12-exercises-and-next-steps)
 
 ---
 
@@ -709,3 +713,260 @@ If you're learning, try these exercises:
 4. **Read the API Gateway module** (`modules/api-gateway/main.tf`) -- it's the largest module and shows how REST APIs, methods, integrations, and CORS all fit together.
 
 5. **Run `terraform plan -var-file=dev.tfvars`** in the dev environment (after `terraform init`) -- read the output to see what Terraform would create. This is the best way to understand what the configuration actually produces.
+
+---
+
+## 9. CI/CD Pipeline (GitHub Actions)
+
+### 9.1 What is CI/CD?
+
+**CI** stands for **Continuous Integration**. Every time someone pushes code or opens a Pull Request, automated checks run to catch problems early. Think of it as a robot reviewer that checks your work before a human does.
+
+**CD** stands for **Continuous Delivery** (or Deployment). After the checks pass and code is merged, the system automatically deploys the changes. In our case, we do CI but *not* automatic CD for Terraform -- you still run `terraform apply` manually. This is a safety choice because Terraform changes affect real infrastructure.
+
+### 9.2 Our Pipeline
+
+The pipeline lives in `.github/workflows/terraform.yml`. Here's what runs when you open a Pull Request:
+
+```
+PR Opened / Code Pushed
+         |
+    +----+----+
+    |         |
+    v         v
+  Format    Lint          Security Scan
+  Check     (TFLint)      (Checkov)
+    |         |                |
+    v         |                |
+  Plan:       |                |
+   Dev        |                |
+    |         |                |
+    v         v                v
+  Comment plan              Report findings
+  on the PR                 (soft fail)
+```
+
+**Job 1: Format Check** (`terraform fmt -check -recursive`)
+Checks that all `.tf` files are consistently formatted. Terraform has an opinionated formatter (like Python's `black` or JavaScript's `prettier`). If files aren't formatted, the check fails. Fix it locally with:
+```bash
+terraform fmt -recursive terraform/
+```
+
+**Job 2: TFLint** (Terraform Linter)
+A linter catches mistakes that `terraform validate` misses. For example:
+- You reference an AWS instance type that doesn't exist (`t2.nonexistent`)
+- You use a deprecated AWS feature
+- Your variable naming isn't consistent
+- You declare variables that are never used
+
+TFLint uses a configuration file at `terraform/.tflint.hcl` that enables the AWS plugin and sets rules.
+
+**Job 3: Checkov** (Security Scanner)
+Checkov scans your Terraform code for security misconfigurations *before* you deploy them. For example:
+- S3 bucket without encryption? Checkov flags it.
+- DynamoDB table without point-in-time recovery? Checkov flags it.
+- Security group open to `0.0.0.0/0`? Checkov flags it.
+
+It runs in "soft fail" mode, meaning it reports findings but doesn't block the pipeline. You review the findings and fix what matters. Some findings don't apply to every project (like cross-region S3 replication for a dev environment).
+
+**Job 4: Terraform Plan for Dev**
+This is the most important job. It runs:
+1. `terraform init` -- downloads providers and configures the backend
+2. `terraform validate` -- checks syntax and configuration validity
+3. `terraform plan -var-file=dev.tfvars` -- shows exactly what would change in AWS
+
+The plan output is automatically posted as a comment on your Pull Request, so reviewers can see what infrastructure changes the code would cause.
+
+**Job 5: Validate Prod**
+Runs `terraform validate` against the prod configuration (without AWS credentials, since we're not deploying prod). This catches syntax errors in prod files.
+
+### 9.3 Why Not Auto-Apply?
+
+Many production teams do auto-apply on merge. We deliberately don't because:
+1. This is a personal AWS account -- an accidental bad merge could create expensive resources
+2. Terraform changes can be destructive (e.g., replacing a database loses all data)
+3. It's safer to review the plan output and run `apply` manually
+
+### 9.4 How the Pipeline Uses Secrets
+
+The pipeline needs AWS credentials to run `terraform plan`. These are stored as **GitHub Secrets** (not in the code):
+- `AWS_ACCESS_KEY_ID` -- identifies which AWS account to use
+- `AWS_SECRET_ACCESS_KEY` -- authenticates the request
+
+You set these in GitHub: Repository Settings > Secrets and variables > Actions.
+
+### 9.5 The Concurrency Setting
+
+```yaml
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+```
+
+This means: if you push new commits to a PR while a pipeline is still running, it cancels the old run and starts a new one. This saves GitHub Actions minutes and avoids confusing outdated plan output.
+
+---
+
+## 10. The Production Environment
+
+### 10.1 Why Production is Different
+
+The prod environment (`terraform/environments/prod/`) is a complete mirror of staging, but with stricter settings. Here's a comparison:
+
+| Setting | Dev | Staging | Prod |
+|---------|-----|---------|------|
+| VPC CIDR | 10.0.0.0/16 | 10.1.0.0/16 | 10.2.0.0/16 |
+| NAT Gateway | Off (saves $32/mo) | Off | On |
+| VPC Flow Logs | Off | On | On |
+| DynamoDB PITR | Off | On | On |
+| Deletion Protection | Off | On | On |
+| S3 Lifecycle Policy | Off | On | On |
+| Document Retention | 365 days | 365 days | 730 days (2 years) |
+| Log Retention | 14 days | 30 days | 90 days |
+| CloudTrail Data Events | Off | Off | On |
+| CloudTrail Retention | 90 days | 90 days | 365 days |
+| CloudTrail Multi-Region | No | No | Yes |
+| CloudTrail Insights | No | No | Yes |
+| API Throttle Rate | 100/sec | 100/sec | 50/sec |
+| API Throttle Burst | 200 | 200 | 100 |
+| Unauthorized API Threshold | 20 | 20 | 10 |
+
+### 10.2 Why Separate VPC CIDRs?
+
+Each environment uses a different IP address range:
+- Dev: `10.0.0.0/16`
+- Staging: `10.1.0.0/16`
+- Prod: `10.2.0.0/16`
+
+This is important because if you ever need to connect environments together (VPC peering), their IP ranges can't overlap. Planning this upfront avoids painful IP address changes later.
+
+### 10.3 Production Security Extras
+
+**Multi-region CloudTrail**: Dev only logs API calls in eu-west-1. Prod logs calls in *all* AWS regions. If someone creates resources in us-east-1 (accidentally or maliciously), you'll see it.
+
+**CloudTrail Insights**: Uses machine learning to detect unusual API activity patterns. For example, if someone suddenly makes 1000 IAM API calls when the baseline is 5, it triggers an alert.
+
+**Data Events**: Logs individual S3 object reads and Lambda invocations. More expensive but gives a complete audit trail for compliance.
+
+**Tighter API Throttling**: Prod limits to 50 requests/second (vs 100 in dev). This is more protective against abuse because prod is internet-facing.
+
+### 10.4 The Terraform Backend
+
+Prod currently uses a `local` backend (state stored on your machine). When you're ready to deploy prod:
+
+1. Uncomment the S3 backend in `terraform/environments/prod/terraform.tf`
+2. Comment out the local backend
+3. Run `terraform init -migrate-state` to move the state to S3
+
+This is documented in the file with clear instructions.
+
+---
+
+## 11. DynamoDB Access Patterns: Query vs Scan
+
+### 11.1 The Problem with Scan
+
+The original API handler used `table.scan()` to list actions and projects. A scan reads **every single item** in the table, then filters out what you don't want. Imagine a bookshelf analogy:
+
+**Scan** = Read every book on every shelf to find the ones about cooking.
+**Query** = Go directly to the "Cooking" section and read only those books.
+
+For 100 items, scan is fine. For 100,000 items, scan is slow and expensive. DynamoDB charges per read capacity unit consumed, so scanning a large table costs real money.
+
+### 11.2 How We Use the Global Secondary Index (GSI1)
+
+Our DynamoDB table has a Global Secondary Index with keys `GSI1PK` and `GSI1SK`. We populate these when creating items to enable efficient queries:
+
+```
+Main Table:
++-------------------+----------+----------+---------------------------+
+| PK                | SK       | GSI1PK   | GSI1SK                    |
++-------------------+----------+----------+---------------------------+
+| ACTION#ACT-001    | METADATA | ACTIONS  | 2025-03-15T10:00:00#001   |
+| ACTION#ACT-002    | METADATA | ACTIONS  | 2025-03-16T09:00:00#002   |
+| PROJECT#PRJ-001   | METADATA | PROJECTS | 2025-03-10T08:00:00#001   |
+| SUGGESTION#SUG-01 | METADATA | SUGGESTIONS#PENDING | 2025-03-15... |
+| DOCUMENT#DOC-001  | METADATA | DOCUMENTS| 2025-03-15T10:30:00#001   |
++-------------------+----------+----------+---------------------------+
+```
+
+Now to get all actions, we query the GSI1 where `GSI1PK = "ACTIONS"`. DynamoDB jumps straight to matching items. The `GSI1SK` contains the timestamp, so results come back sorted by creation date.
+
+### 11.3 Pagination
+
+When you have many items, you don't want to return them all at once. Our API supports pagination:
+
+```
+GET /api/v1/actions?pageSize=10
+  -> Returns first 10 actions + a nextToken
+
+GET /api/v1/actions?pageSize=10&nextToken=abc123
+  -> Returns the next 10 actions
+```
+
+The `nextToken` is a base64-encoded DynamoDB `LastEvaluatedKey`. The frontend passes it back to get the next page. This is DynamoDB's native pagination mechanism -- it tells you "I stopped here, pass this back to continue."
+
+### 11.4 Backward Compatibility
+
+Old items in DynamoDB (created before we added GSI keys) don't have `GSI1PK` and `GSI1SK` values, so they won't appear in GSI queries. The API handler handles this with a fallback:
+
+1. First, try a Query on GSI1 (fast, indexed)
+2. If that returns nothing, fall back to a Scan (slower, but finds old data)
+
+This means existing data still works. New items created through the API will always have GSI keys and will be found via the fast Query path.
+
+### 11.5 CORS Origin Handling
+
+The original code returned `Access-Control-Allow-Origin: *` on every response. This tells browsers "any website can call this API", which is a security risk -- a malicious site could make API calls using a logged-in user's session.
+
+The improved handler reads `ALLOWED_ORIGINS` from an environment variable (set by Terraform) and only allows requests from your actual domains:
+
+```python
+# Terraform sets this env var:
+# ALLOWED_ORIGINS = "http://localhost:3000,https://actions-dev.engsnayl.com"
+
+def get_cors_origin(event):
+    request_origin = event['headers'].get('Origin', '')
+    allowed = ALLOWED_ORIGINS.split(',')
+    if request_origin in allowed:
+        return request_origin  # "Yes, you're allowed"
+    return allowed[0]          # Safe default
+```
+
+### 11.6 Input Validation
+
+The API now validates incoming data before writing to DynamoDB:
+
+- **Required fields**: Creating an action requires a `title`. Creating a project requires a `name`. Missing fields return `400 Bad Request` with a clear error message.
+- **Status validation**: The status update endpoint only accepts valid values (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`). Invalid values return `400 Bad Request`.
+- **Conditional writes**: The status update uses `ConditionExpression='attribute_exists(PK)'` to confirm the item exists before updating. If it doesn't exist, you get a `404 Not Found` instead of silently creating a phantom item.
+
+---
+
+## 12. Exercises and Next Steps
+
+If you're learning, try these exercises in order:
+
+### Beginner
+
+1. **Read the DynamoDB module** (`modules/dynamodb/main.tf`) -- it's the simplest module (one resource, a few config blocks).
+
+2. **Compare dev.tfvars, staging.tfvars, and prod.tfvars** -- understand why each environment has different settings and what trade-offs are being made (cost vs security).
+
+3. **Read the CI/CD pipeline** (`.github/workflows/terraform.yml`) -- each job has comments explaining what it does.
+
+### Intermediate
+
+4. **Trace the VPC module** (`modules/vpc/main.tf`) -- follow how subnets, route tables, and gateways connect. Draw the network diagram yourself.
+
+5. **Read the API handler** (`src/lambdas/api-handler/lambda_function.py`) -- trace how a `POST /api/v1/actions` request flows through the code, from the router to the DynamoDB write.
+
+6. **Run `terraform plan -var-file=dev.tfvars`** in the dev environment -- read the output to understand what the configuration actually produces.
+
+### Advanced
+
+7. **Read the API Gateway module** (`modules/api-gateway/main.tf`) -- it's the largest module and shows how REST APIs, methods, integrations, authorizers, and CORS all fit together.
+
+8. **Study the IAM role split** in `modules/lambda/main.tf` -- understand why `moved` blocks exist and what would happen without them (Terraform would destroy and recreate the roles, potentially causing downtime).
+
+9. **Open a Pull Request** on the `claude-fixes` branch and watch the CI pipeline run. Read the plan output comment that gets posted on the PR.

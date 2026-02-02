@@ -95,6 +95,12 @@ variable "api_gateway_execution_arn" {
   default     = ""
 }
 
+variable "allowed_origins" {
+  description = "Comma-separated list of allowed CORS origins"
+  type        = string
+  default     = "*"
+}
+
 variable "tags" {
   description = "Additional tags to apply to resources"
   type        = map(string)
